@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { validateInitData } from '../bot/validateInitData.js'
 import { prisma } from '../bot/db.js'
+import { sendJSON, isModerator, haversineKm, handleProfileSubmission as handleProfileSubmissionShared, getAuthedUserFromInitData as getAuthedUserFromInitDataShared, subscribers as sharedSubs, addSubscriber, removeSubscriber, emitTo, checkRate, isBlockedBetween, isIncognito } from '../bot/shared.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 const webRoot = path.join(path.resolve(__dirname, '..'), 'webapp')
@@ -10,130 +11,50 @@ const docsRoot = path.join(path.resolve(__dirname, '..'), 'docs')
 
 const botToken = process.env.BOT_TOKEN || ''
 const modAdmins = (process.env.MOD_ADMINS || '').split(',').map(s => s.trim()).filter(Boolean)
-const subscribers = new Map()
-
-function sendJSON(res, status, payload) {
-  res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify(payload))
+const subscribers = sharedSubs
+const rateLimits = new Map()
+function checkRate(userId, key, max, windowMs) {
+  const now = Date.now()
+  const k = `${userId}|${key}`
+  const state = rateLimits.get(k) || { count: 0, start: now }
+  if (now - state.start > windowMs) {
+    state.count = 0
+    state.start = now
+  }
+  state.count++
+  rateLimits.set(k, state)
+  return state.count <= max
 }
 
-function isModerator(tgUser) {
-  if (!tgUser?.id) return false
-  return modAdmins.includes(String(tgUser.id))
+function readJsonLimited(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    let size = 0
+    let body = ''
+    req.on('data', chunk => {
+      size += chunk.length
+      if (size > maxBytes) {
+        reject(new Error('payload_too_large'))
+        return
+      }
+      body += chunk
+    })
+    req.on('end', () => {
+      try {
+        const json = JSON.parse(body || '{}')
+        resolve(json)
+      } catch (e) {
+        reject(new Error('invalid_json'))
+      }
+    })
+    req.on('error', reject)
+  })
 }
-
-function haversineKm(a, b) {
-  if (!a || !b) return null
-  const toRad = d => (d * Math.PI) / 180
-  const R = 6371
-  const dLat = toRad((b.lat ?? 0) - (a.lat ?? 0))
-  const dLon = toRad((b.lon ?? 0) - (a.lon ?? 0))
-  const lat1 = toRad(a.lat ?? 0)
-  const lat2 = toRad(b.lat ?? 0)
-  const sinLat = Math.sin(dLat / 2)
-  const sinLon = Math.sin(dLon / 2)
-  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLon * sinLon
-  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
-  return R * c
+function isModeratorLocal(tgUser) {
+  return isModerator(modAdmins, tgUser)
 }
 
 async function handleProfileSubmission(data, user) {
-  let upsertUser
-  if (user?.id) {
-    upsertUser = await prisma.user.upsert({
-      where: { telegramId: String(user.id) },
-      update: {
-        username: user.username || data.username || '',
-        displayName: data.displayName,
-        language: data.meta?.language || 'es',
-      },
-      create: {
-        telegramId: String(user.id),
-        username: user.username || data.username || '',
-        displayName: data.displayName,
-        language: data.meta?.language || 'es',
-      },
-    })
-  } else if (data.username) {
-    upsertUser = await prisma.user.upsert({
-      where: { username: data.username },
-      update: {
-        displayName: data.displayName,
-        language: data.meta?.language || 'es',
-      },
-      create: {
-        username: data.username,
-        displayName: data.displayName,
-        language: data.meta?.language || 'es',
-      },
-    })
-  } else {
-    upsertUser = await prisma.user.create({
-      data: {
-        displayName: data.displayName,
-        language: data.meta?.language || 'es',
-      },
-    })
-  }
-
-  const orientationNames = data.orientation || []
-  const orientations = await Promise.all(
-    orientationNames.map(name =>
-      prisma.orientation.upsert({
-        where: { name },
-        update: {},
-        create: { name },
-      })
-    )
-  )
-
-  const profile = await prisma.profile.upsert({
-    where: { userId: upsertUser.id },
-    update: {
-      pronouns: data.pronouns,
-      gender: data.gender,
-      genderCustom: data.genderCustom,
-      intentsFriends: data.intents?.lookingFriends || false,
-      intentsRomance: data.intents?.lookingRomance || false,
-      intentsPoly: data.intents?.lookingPoly || false,
-      transInclusive: data.intents?.transInclusive !== false,
-      city: data.location?.city || null,
-      latitude: typeof data.location?.latitude === 'number' ? data.location.latitude : null,
-      longitude: typeof data.location?.longitude === 'number' ? data.location.longitude : null,
-      orientations: { set: orientations.map(o => ({ id: o.id })) },
-    },
-    create: {
-      userId: upsertUser.id,
-      pronouns: data.pronouns,
-      gender: data.gender,
-      genderCustom: data.genderCustom,
-      intentsFriends: data.intents?.lookingFriends || false,
-      intentsRomance: data.intents?.lookingRomance || false,
-      intentsPoly: data.intents?.lookingPoly || false,
-      transInclusive: data.intents?.transInclusive !== false,
-      city: data.location?.city || null,
-      latitude: typeof data.location?.latitude === 'number' ? data.location.latitude : null,
-      longitude: typeof data.location?.longitude === 'number' ? data.location.longitude : null,
-      orientations: { connect: orientations.map(o => ({ id: o.id })) },
-    },
-  })
-
-  await prisma.privacySettings.upsert({
-    where: { profileId: profile.id },
-    update: {
-      incognito: data.privacy?.incognito || false,
-      hideDistance: data.privacy?.hideDistance || false,
-      profileVisible: data.privacy?.profileVisible !== false,
-    },
-    create: {
-      profileId: profile.id,
-      incognito: data.privacy?.incognito || false,
-      hideDistance: data.privacy?.hideDistance || false,
-      profileVisible: data.privacy?.profileVisible !== false,
-    },
-  })
-
-  return upsertUser
+  return handleProfileSubmissionShared(prisma, data, user)
 }
 
 async function sendTelegramMessage(telegramId, text) {
@@ -149,25 +70,8 @@ async function sendTelegramMessage(telegramId, text) {
 }
 
 async function getAuthedUserFromInitData(initData) {
-  if (!botToken || !initData) return null
-  const validation = validateInitData(initData, botToken)
-  if (!validation.valid || !validation.user?.id) return null
-  const tgUser = validation.user
-  const user = await prisma.user.upsert({
-    where: { telegramId: String(tgUser.id) },
-    update: {
-      username: tgUser.username || '',
-      displayName: tgUser.first_name || 'Usuario',
-      language: tgUser.language_code || 'es',
-    },
-    create: {
-      telegramId: String(tgUser.id),
-      username: tgUser.username || '',
-      displayName: tgUser.first_name || 'Usuario',
-      language: tgUser.language_code || 'es',
-    },
-  })
-  return user
+  const allowDemo = process.env.NODE_ENV !== 'production'
+  return getAuthedUserFromInitDataShared(prisma, validateInitData, botToken, initData, allowDemo)
 }
 
 export default async function handler(req, res) {
@@ -373,7 +277,7 @@ export default async function handler(req, res) {
           orderBy: { createdAt: 'desc' },
           take: 50,
         })
-        const items = rows.map(r => {
+        const itemsRaw = rows.map(r => {
           const other = r.aId === user.id ? r.b : r.a
           return {
             userId: other.id,
@@ -383,6 +287,11 @@ export default async function handler(req, res) {
             matchedAt: r.createdAt,
           }
         })
+        const blocks = await prisma.block.findMany({
+          where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] },
+        })
+        const blockedIds = new Set(blocks.flatMap(b => [b.blockerId, b.blockedId]).filter(id => id !== user.id))
+        const items = itemsRaw.filter(it => !blockedIds.has(it.userId))
         sendJSON(res, 200, { ok: true, matches: items })
       } catch (err) {
         console.error(err)
@@ -406,6 +315,15 @@ export default async function handler(req, res) {
         const peerId = String(json.peerUserId || '')
         if (!peerId) {
           sendJSON(res, 400, { ok: false, error: 'peerUserId requerido' })
+          return
+        }
+        if (!checkRate(user.id, 'history', 120, 60_000)) {
+          sendJSON(res, 429, { ok: false, error: 'rate_limit' })
+          return
+        }
+        const blocked = await isBlockedBetween(prisma, user.id, peerId)
+        if (blocked) {
+          sendJSON(res, 403, { ok: false, error: 'blocked' })
           return
         }
         const msgs = await prisma.message.findMany({
@@ -442,24 +360,16 @@ export default async function handler(req, res) {
     })
     res.write(`event: open\ndata: ok\n\n`)
     const key = user.id
-    const list = subscribers.get(key) || []
-    list.push(res)
-    subscribers.set(key, list)
+    addSubscriber(key, res)
     req.on('close', () => {
-      const arr = subscribers.get(key) || []
-      const idx = arr.indexOf(res)
-      if (idx >= 0) arr.splice(idx, 1)
-      subscribers.set(key, arr)
+      removeSubscriber(key, res)
     })
     return
   }
 
   if (method === 'POST' && pathname === '/api/chat/send') {
-    let body = ''
-    req.on('data', chunk => { body += chunk })
-    req.on('end', async () => {
-      try {
-        const json = JSON.parse(body || '{}')
+    try {
+      const json = await readJsonLimited(req, 128 * 1024)
         const user = await getAuthedUserFromInitData(json.initData || '')
         if (!user) {
           sendJSON(res, 401, { ok: false, error: 'initData inválido' })
@@ -477,6 +387,18 @@ export default async function handler(req, res) {
           sendJSON(res, 404, { ok: false, error: 'Usuario no encontrado' })
           return
         }
+        if (await isIncognito(prisma, user.id)) {
+          sendJSON(res, 403, { ok: false, error: 'incognito' })
+          return
+        }
+        if (await isBlockedBetween(prisma, user.id, target.id)) {
+          sendJSON(res, 403, { ok: false, error: 'blocked' })
+          return
+        }
+        if (!checkRate(user.id, 'send', 30, 60_000)) {
+          sendJSON(res, 429, { ok: false, error: 'rate_limit' })
+          return
+        }
         const msg = await prisma.message.create({
           data: { senderId: user.id, recipientId: target.id, content },
         })
@@ -487,22 +409,24 @@ export default async function handler(req, res) {
           update: { messages: { increment: 1 } },
           create: { day: dayStart, messages: 1, likes: 0, matches: 0 },
         })
-        const receivers = subscribers.get(target.id) || []
-        const payload = JSON.stringify({
+        const payload = {
           id: msg.id,
           fromId: user.id,
           content,
           createdAt: msg.createdAt,
-        })
-        for (const r of receivers) {
-          r.write(`event: message\ndata: ${payload}\n\n`)
         }
+        emitTo(target.id, 'message', payload)
         sendJSON(res, 200, { ok: true })
-      } catch (err) {
+    } catch (err) {
+      if (err?.message === 'payload_too_large') {
+        sendJSON(res, 413, { ok: false, error: 'payload_too_large' })
+      } else if (err?.message === 'invalid_json') {
+        sendJSON(res, 400, { ok: false, error: 'invalid_json' })
+      } else {
         console.error(err)
         sendJSON(res, 500, { ok: false, error: 'Error interno' })
       }
-    })
+    }
     return
   }
 
@@ -525,6 +449,14 @@ export default async function handler(req, res) {
         const target = await prisma.user.findUnique({ where: { id: toUserId } })
         if (!target) {
           sendJSON(res, 404, { ok: false, error: 'Usuario no encontrado' })
+          return
+        }
+        if (await isIncognito(prisma, user.id)) {
+          sendJSON(res, 403, { ok: false, error: 'incognito' })
+          return
+        }
+        if (await isBlockedBetween(prisma, user.id, target.id)) {
+          sendJSON(res, 403, { ok: false, error: 'blocked' })
           return
         }
         await prisma.like.create({
@@ -600,6 +532,10 @@ export default async function handler(req, res) {
           sendJSON(res, 401, { ok: false, error: 'unauthorized' })
           return
         }
+        if (!checkRate(String(validation.user.id), 'mod_verify', 60, 60_000)) {
+          sendJSON(res, 429, { ok: false, error: 'rate_limit' })
+          return
+        }
         const userId = String(json.userId || '')
         const profile = await prisma.profile.findUnique({ where: { userId } })
         if (!profile) {
@@ -629,6 +565,10 @@ export default async function handler(req, res) {
         const validation = validateInitData(json.initData || '', botToken)
         if (!validation.valid || !isModerator(validation.user)) {
           sendJSON(res, 401, { ok: false, error: 'unauthorized' })
+          return
+        }
+        if (!checkRate(String(validation.user.id), 'mod_block', 30, 60_000)) {
+          sendJSON(res, 429, { ok: false, error: 'rate_limit' })
           return
         }
         const blockerId = String(json.blockerUserId || '')
@@ -664,6 +604,10 @@ export default async function handler(req, res) {
         const validation = validateInitData(json.initData || '', botToken)
         if (!validation.valid) {
           sendJSON(res, 401, { ok: false, error: 'initData inválido' })
+          return
+        }
+        if (!checkRate(String(validation.user.id), 'report', 5, 60_000)) {
+          sendJSON(res, 429, { ok: false, error: 'rate_limit' })
           return
         }
         const reporter = validation.user

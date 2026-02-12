@@ -1,15 +1,15 @@
 {
   "version": 2,
   "functions": {
-    "bot/server.js": {
+    "bot/server.vercel.js": {
       "runtime": "nodejs18.x"
     }
   },
   "routes": [
-    { "src": "/(.*)", "dest": "/bot/server.js" }
+    { "src": "/(.*)", "dest": "/bot/server.vercel.js" }
   ],
   "env": {
-    "DATABASE_URL": "file:./prisma/dev.db",
+    "DATABASE_URL": "@database-url",
     "BOT_TOKEN": "@bot-token",
     "MOD_ADMINS": "@mod-admins"
   }

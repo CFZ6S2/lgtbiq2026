@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node bot/server.js",
-    "db:push": "powershell -Command \"$env:DATABASE_URL='file:./prisma/dev.db'; prisma db push --schema prisma/schema.prisma\"",
-    "db:studio": "prisma studio"
+    "db:push": "prisma db push --schema prisma/schema.prisma",
+    "db:studio": "prisma studio",
+    "test": "node tests/validateInitData.test.js && node tests/api.basic.test.js"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

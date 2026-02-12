@@ -5,6 +5,8 @@ import path from 'path'
 import url from 'url'
 import { validateInitData } from './validateInitData.js'
 import { prisma } from './db.js'
+import { getCorrelationId, log } from './logger.js'
+import { sendJSON, isModerator as isModeratorShared, haversineKm, subscribers as sharedSubs, addSubscriber, removeSubscriber, emitTo, checkRate } from './shared.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -56,14 +58,10 @@ function serveFile(res, filePath, type) {
   })
 }
 
-function sendJSON(res, status, payload) {
-  res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify(payload))
-}
+const subscribers = sharedSubs
 
 function isModerator(tgUser) {
-  if (!tgUser?.id) return false
-  return modAdmins.includes(String(tgUser.id))
+  return isModeratorShared(modAdmins, tgUser)
 }
 async function handleProfileSubmission(data, user) {
   let upsertUser
@@ -104,36 +102,6 @@ async function handleProfileSubmission(data, user) {
     })
   }
 
-  if (req.method === 'POST' && parsed.pathname === '/api/chat/typing') {
-    let body = ''
-    req.on('data', chunk => { body += chunk })
-    req.on('end', async () => {
-      try {
-        const json = JSON.parse(body || '{}')
-        const user = await getAuthedUserFromInitData(json.initData || '')
-        if (!user) {
-          sendJSON(res, 401, { ok: false, error: 'initData inválido' })
-          return
-        }
-        const peerId = String(json.peerUserId || '')
-        const active = !!json.active
-        if (!peerId) {
-          sendJSON(res, 400, { ok: false, error: 'peerUserId requerido' })
-          return
-        }
-        const receivers = subscribers.get(peerId) || []
-        const payload = JSON.stringify({ fromId: user.id, active })
-        for (const r of receivers) {
-          r.write(`event: typing\ndata: ${payload}\n\n`)
-        }
-        sendJSON(res, 200, { ok: true })
-      } catch (err) {
-        console.error(err)
-        sendJSON(res, 500, { ok: false, error: 'Error interno' })
-      }
-    })
-    return
-  }
   const orientationNames = data.orientation || []
   const orientations = await Promise.all(
     orientationNames.map(name =>
@@ -240,6 +208,10 @@ async function getAuthedUserFromInitData(initData) {
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true)
 
+  if (typingRoute(req, res, parsed)) {
+    return
+  }
+
   if (req.method === 'GET' && (parsed.pathname === '/' || parsed.pathname === '/index.html')) {
     serveFile(res, path.join(webRoot, 'index.html'), 'text/html; charset=utf-8')
     return
@@ -308,7 +280,7 @@ const server = http.createServer(async (req, res) => {
         }
         sendJSON(res, 200, { ok: true, userId: user.id })
       } catch (err) {
-        console.error(err)
+        log('error', 'sendData_failed', { cid: getCorrelationId(req), error: String(err?.message || err) })
         sendJSON(res, 500, { ok: false, error: 'Error interno' })
       }
     })
@@ -418,7 +390,7 @@ const server = http.createServer(async (req, res) => {
         }))
         sendJSON(res, 200, { ok: true, recs })
       } catch (err) {
-        console.error(err)
+        log('error', 'recs_failed', { cid: getCorrelationId(req), error: String(err?.message || err) })
         sendJSON(res, 500, { ok: false, error: 'Error interno' })
       }
     })
@@ -753,14 +725,9 @@ const server = http.createServer(async (req, res) => {
     })
     res.write(`event: open\ndata: ok\n\n`)
     const key = user.id
-    const list = subscribers.get(key) || []
-    list.push(res)
-    subscribers.set(key, list)
+    addSubscriber(key, res)
     req.on('close', () => {
-      const arr = subscribers.get(key) || []
-      const idx = arr.indexOf(res)
-      if (idx >= 0) arr.splice(idx, 1)
-      subscribers.set(key, arr)
+      removeSubscriber(key, res)
     })
     return
   }
@@ -814,16 +781,13 @@ const server = http.createServer(async (req, res) => {
           update: { messages: { increment: 1 } },
           create: { day: dayStart, messages: 1, likes: 0, matches: 0 },
         })
-        const receivers = subscribers.get(target.id) || []
-        const payload = JSON.stringify({
+        const payload = {
           id: msg.id,
           fromId: user.id,
           content,
           createdAt: msg.createdAt,
-        })
-        for (const r of receivers) {
-          r.write(`event: message\ndata: ${payload}\n\n`)
         }
+        emitTo(target.id, 'message', payload)
         // Notificar al remitente que el mensaje fue entregado
         const senderSubs = subscribers.get(user.id) || []
         const receiptPayload = JSON.stringify({
@@ -1146,36 +1110,6 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (req.method === 'POST' && parsed.pathname === '/api/mod/block-user') {
-    let body = ''
-    req.on('data', chunk => { body += chunk })
-    req.on('end', async () => {
-      try {
-        const json = JSON.parse(body || '{}')
-        const validation = validateInitData(json.initData || '', botToken)
-        if (!validation.valid || !isModerator(validation.user)) {
-          sendJSON(res, 401, { ok: false, error: 'unauthorized' })
-          return
-        }
-        const blockerId = String(json.blockerUserId || '')
-        const blockedId = String(json.blockedUserId || '')
-        if (!blockerId || !blockedId) {
-          sendJSON(res, 400, { ok: false, error: 'Parámetros requeridos' })
-          return
-        }
-        await prisma.block.upsert({
-          where: { blockerId_blockedId: { blockerId, blockedId } },
-          update: {},
-          create: { blockerId, blockedId },
-        })
-        sendJSON(res, 200, { ok: true })
-      } catch (err) {
-        console.error(err)
-        sendJSON(res, 500, { ok: false, error: 'Error interno' })
-      }
-    })
-    return
-  }
   if (req.method === 'POST' && parsed.pathname === '/api/block') {
     let body = ''
     req.on('data', chunk => { body += chunk })
@@ -1234,6 +1168,38 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, () => {
   process.stdout.write(`Servidor en http://localhost:${port}/\n`)
 })
+
+// Ruta para notificar estado de escritura (typing)
+// Ubicada al nivel del enrutador, fuera de handleProfileSubmission
+const typingRoute = (req, res, parsed) => {
+  if (req.method === 'POST' && parsed.pathname === '/api/chat/typing') {
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', async () => {
+      try {
+        const json = JSON.parse(body || '{}')
+        const user = await getAuthedUserFromInitData(json.initData || '')
+        if (!user) {
+          sendJSON(res, 401, { ok: false, error: 'initData inválido' })
+          return
+        }
+        const peerId = String(json.peerUserId || '')
+        const active = !!json.active
+        if (!peerId) {
+          sendJSON(res, 400, { ok: false, error: 'peerUserId requerido' })
+          return
+        }
+        emitTo(peerId, 'typing', { fromId: user.id, active })
+        sendJSON(res, 200, { ok: true })
+      } catch (err) {
+        console.error(err)
+        sendJSON(res, 500, { ok: false, error: 'Error interno' })
+      }
+    })
+    return true
+  }
+  return false
+}
 
 const certPath = process.env.HTTPS_CERT_PATH || ''
 const keyPath = process.env.HTTPS_KEY_PATH || ''
