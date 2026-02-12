@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "functions": {
+    "bot/server.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/bot/server.js" }
+  ],
+  "env": {
+    "DATABASE_URL": "file:./prisma/dev.db",
+    "BOT_TOKEN": "@bot-token",
+    "MOD_ADMINS": "@mod-admins"
+  }
+}

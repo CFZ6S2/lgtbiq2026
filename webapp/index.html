@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plataforma LGBTI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/webapp/styles.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>Tu perfil</h1>
+      <p>Configura tu perfil inclusivo y tu privacidad.</p>
+    </header>
+
+    <form id="profile-form" aria-labelledby="form-title">
+      <h2 id="form-title">Datos y preferencias</h2>
+
+      <label for="displayName">Nombre visible</label>
+      <input id="displayName" name="displayName" type="text" autocomplete="name" required>
+
+      <label for="username">Usuario</label>
+      <input id="username" name="username" type="text" autocomplete="username">
+
+      <label for="pronouns">Pronombres</label>
+      <input id="pronouns" name="pronouns" type="text" placeholder="ella/él/elle">
+
+      <label for="gender">Género</label>
+      <select id="gender" name="gender">
+        <option value="">Prefiero no decir</option>
+        <option value="femenino">Femenino</option>
+        <option value="masculino">Masculino</option>
+        <option value="no-binario">No binario</option>
+        <option value="fluido">Fluido</option>
+        <option value="trans">Trans</option>
+        <option value="intersexual">Intersexual</option>
+        <option value="otro">Otro</option>
+      </select>
+
+      <label for="genderCustom">Género personalizado</label>
+      <input id="genderCustom" name="genderCustom" type="text" placeholder="Describe tu identidad">
+
+      <label for="city">Ciudad</label>
+      <input id="city" name="city" type="text" placeholder="Ciudad">
+      <label for="latitude">Latitud</label>
+      <input id="latitude" name="latitude" type="number" step="0.000001" placeholder="ej. 4.711">
+      <label for="longitude">Longitud</label>
+      <input id="longitude" name="longitude" type="number" step="0.000001" placeholder="ej. -74.072">
+      <button type="button" id="useLocation">Usar ubicación</button>
+
+      <label for="orientation">Orientación</label>
+      <select id="orientation" name="orientation" multiple size="5" aria-describedby="orientationHelp">
+        <option value="gay">Gay</option>
+        <option value="lesbiana">Lesbiana</option>
+        <option value="bisexual">Bisexual</option>
+        <option value="pansexual">Pansexual</option>
+        <option value="asexual">Asexual</option>
+        <option value="queer">Queer</option>
+        <option value="demisexual">Demisexual</option>
+        <option value="heteroflexible">Heteroflexible</option>
+        <option value="poliamor">Poliamor</option>
+        <option value="otro">Otro</option>
+      </select>
+      <small id="orientationHelp">Puedes seleccionar varias opciones.</small>
+
+      <fieldset>
+        <legend>Privacidad</legend>
+        <label class="switch">
+          <input type="checkbox" id="incognito" name="incognito">
+          <span>Modo incógnito</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="hideDistance" name="hideDistance">
+          <span>Ocultar distancia</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="profileVisible" name="profileVisible" checked>
+          <span>Perfil visible</span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Intenciones</legend>
+        <label class="switch">
+          <input type="checkbox" id="lookingFriends" name="lookingFriends">
+          <span>Amistad</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="lookingRomance" name="lookingRomance">
+          <span>Romance</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="lookingPoly" name="lookingPoly">
+          <span>Relaciones poliamorosas</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="transInclusive" name="transInclusive" checked>
+          <span>Trans-incluyente</span>
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" id="submitBtn">Guardar y enviar</button>
+      </div>
+    </form>
+
+    <section class="discover">
+      <h2>Descubrir</h2>
+      <div class="filters">
+        <label>
+          Orientaciones
+          <select id="filterOrientations" multiple size="4"></select>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="filterFriends">
+          <span>Amistad</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="filterRomance">
+          <span>Romance</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="filterPoly">
+          <span>Relaciones poliamorosas</span>
+        </label>
+        <div class="actions">
+          <label class="switch">
+            <input type="checkbox" id="filterVerified">
+            <span>Solo verificados</span>
+          </label>
+          <input id="filterCity" type="text" placeholder="Ciudad">
+          <input id="maxDistanceKm" type="number" min="1" step="1" placeholder="Distancia km">
+          <button id="applyFilters">Aplicar filtros</button>
+        </div>
+        <div id="incognitoNote" hidden role="note" aria-live="polite">Estás en modo incógnito: no puedes dar Me gusta.</div>
+      </div>
+      <div id="feed" aria-live="polite" role="list" aria-label="Personas recomendadas"></div>
+    </section>
+
+    <section class="chat">
+      <h2>Chat</h2>
+      <div id="typing" aria-live="polite" aria-atomic="true"></div>
+      <div class="actions">
+        <button id="load-more" aria-label="Cargar mensajes anteriores">Cargar anteriores</button>
+      </div>
+      <div id="matches" aria-live="polite" role="list" aria-label="Coincidencias"></div>
+      <div id="chat-log" aria-live="polite" aria-relevant="additions" aria-atomic="false" role="log" tabindex="0"></div>
+      <div id="incognitoChatNote" hidden role="note" aria-live="polite">Modo incógnito activo: puedes chatear con matches existentes.</div>
+      <div class="actions">
+        <input type="text" id="chat-input" placeholder="Escribe un mensaje">
+        <button id="chat-send">Enviar</button>
+        <input type="file" id="chat-file" accept="image/*,audio/*">
+        <button id="chat-send-file">Enviar adjunto</button>
+        <button id="scroll-bottom" style="display:none" aria-label="Ir al final">Ir al final</button>
+      </div>
+    </section>
+
+    <section class="support">
+      <h2>Recursos</h2>
+      <ul>
+        <li><a href="../docs/privacidad.md">Política de privacidad</a></li>
+        <li><a href="../docs/terminos.md">Términos de servicio</a></li>
+      </ul>
+      <div class="actions">
+        <button id="exportDataBtn">Descargar mis datos</button>
+        <button id="deleteAccountBtn">Eliminar mi cuenta</button>
+      </div>
+    </section>
+    <section id="goodbye" hidden>
+      <h2>Cuenta eliminada</h2>
+      <p>Tu cuenta y datos han sido eliminados. Gracias por usar la plataforma.</p>
+      <p class="sr-only">Puedes cerrar esta ventana con seguridad.</p>
+    </section>
+  </main>
+    <section class="moderation" id="moderation" hidden>
+      <h2>Moderación</h2>
+      <div class="actions">
+        <input type="text" id="verifyUserId" placeholder="User ID a verificar">
+        <button id="verifyBtn">Verificar foto</button>
+      </div>
+      <div class="actions">
+        <input type="text" id="blockerUserId" placeholder="Blocker User ID">
+        <input type="text" id="blockedUserId" placeholder="Blocked User ID">
+        <button id="blockBtn">Bloquear</button>
+      </div>
+      <div class="actions">
+        <button id="reloadReports">Recargar reportes</button>
+      </div>
+      <div id="mod-reports"></div>
+    </section>
+  </main>
+
+  <script src="/webapp/app.js"></script>
+</body>
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+</style>
+</html>
