@@ -46,6 +46,11 @@ model Profile {
   city           String?
   latitude       Float?
   longitude      Float?
+  geoHash        String?
+  locationUpdatedAt DateTime?
+  @@index([latitude])
+  @@index([longitude])
+  @@index([locationUpdatedAt])
 }
 
 model Orientation {
@@ -61,6 +66,8 @@ model PrivacySettings {
   incognito      Boolean @default(false)
   hideDistance   Boolean @default(false)
   profileVisible Boolean @default(true)
+  mapConsent     Boolean @default(false)
+  mapConsentAt   DateTime?
 }
 
 model Verification {

@@ -6,7 +6,7 @@ import url from 'url'
 import { validateInitData } from './validateInitData.js'
 import { prisma } from './db.js'
 import { getCorrelationId, log } from './logger.js'
-import { sendJSON as sendJSONCommon, isModerator as isModeratorCommon, checkRate as checkRateCommon, haversineKm as haversineKmCommon, getAuthedUserFromInitData as getAuthedUserFromInitDataCommon, parseOrSendValidationError, ZExportBody, ZDeleteBody, ZReportBody, ZBlockBody, ZModBlockBody, ZTypingBody, ZSendBody, ZMarkReadBody, toCsv, exportToCsvRows } from './common.js'
+import { sendJSON as sendJSONCommon, isModerator as isModeratorCommon, checkRate as checkRateCommon, haversineKm as haversineKmCommon, readJsonLimited as readJsonLimitedCommon, getAuthedUserFromInitData as getAuthedUserFromInitDataCommon, parseOrSendValidationError, ZExportBody, ZDeleteBody, ZReportBody, ZBlockBody, ZModBlockBody, ZTypingBody, ZSendBody, ZMarkReadBody, ZMapConsentBody, ZMapLocationBody, toCsv, exportToCsvRows, geohashEncode, geohashDecodeCenter } from './common.js'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -23,6 +23,12 @@ const apiBase = botToken ? `https://api.telegram.org/bot${botToken}` : ''
 const modAdmins = (process.env.MOD_ADMINS || '').split(',').map(s => s.trim()).filter(Boolean)
 const subscribers = new Map()
 const haversineKm = haversineKmCommon
+const featureMap = process.env.FEATURE_MAP === 'true'
+const mapPaid = process.env.MAP_PAID === 'true'
+const mapRequireConsent = process.env.MAP_REQUIRE_CONSENT === 'true'
+const mapGeohashOutPrecision = process.env.MAP_GEOHASH_OUT_PRECISION ? parseInt(process.env.MAP_GEOHASH_OUT_PRECISION, 10) : 0
+const mapJitterMinM = process.env.MAP_JITTER_MIN_M ? parseInt(process.env.MAP_JITTER_MIN_M, 10) : 80
+const mapJitterMaxM = process.env.MAP_JITTER_MAX_M ? parseInt(process.env.MAP_JITTER_MAX_M, 10) : 250
 
 function serveFile(res, filePath, type) {
   fs.readFile(filePath, (err, data) => {
@@ -463,6 +469,124 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'GET' && parsed.pathname === '/api/map/nearby') {
+    try {
+      const cid = getCorrelationId(req)
+      if (!featureMap) { sendJSON(res, 404, { ok: false, code: 'NOT_FOUND', message: 'Mapa no disponible', correlationId: cid }); return }
+      const initData = parsed.query.initData || ''
+      const user = await getAuthedUserFromInitData(initData || '')
+      if (!user) { sendJSON(res, 401, { ok: false, code: 'UNAUTH', message: 'initData inválido', correlationId: cid }); return }
+      if (!checkRate(user.id, 'map_nearby', 20, 60_000)) { sendJSON(res, 429, { ok: false, code: 'rate_limit', correlationId: cid }); return }
+      const privacy = await prisma.privacySettings.findFirst({ where: { profile: { userId: user.id } } })
+      if (privacy?.incognito) { sendJSON(res, 403, { ok: false, code: 'INCOGNITO', message: 'Mapa no disponible en incógnito', correlationId: cid }); return }
+      if (privacy?.hideDistance) { sendJSON(res, 403, { ok: false, code: 'DISTANCE_HIDDEN', message: 'Distancia oculta', correlationId: cid }); return }
+      const visible = await isPeerVisible(prisma, user.id)
+      if (!visible) { sendJSON(res, 403, { ok: false, code: 'PEER_HIDDEN', message: 'Perfil oculto', correlationId: cid }); return }
+      if (mapRequireConsent) {
+        if (!privacy?.mapConsent) { sendJSON(res, 409, { ok: false, code: 'CONSENT_REQUIRED', message: 'Requiere consentimiento', correlationId: cid }); return }
+      }
+      if (mapPaid) { sendJSON(res, 402, { ok: false, code: 'PAYMENT_REQUIRED', message: 'Mapa disponible con Premium', correlationId: cid }); return }
+      const profile = await prisma.profile.findUnique({ where: { userId: user.id } })
+      const lat = typeof parsed.query.lat === 'string' ? Number(parsed.query.lat) : profile?.latitude ?? null
+      const lon = typeof parsed.query.lon === 'string' ? Number(parsed.query.lon) : profile?.longitude ?? null
+      const radiusKm = typeof parsed.query.radiusKm === 'string' ? Math.max(1, Math.min(Number(parsed.query.radiusKm), 50)) : 5
+      if (lat == null || lon == null) { sendJSON(res, 400, { ok: false, code: 'LOCATION_REQUIRED', message: 'Ubicación requerida', correlationId: cid }); return }
+      const bbox = bboxFromRadiusKm(lat, lon, radiusKm)
+      const maxAgeMin = process.env.MAP_LOCATION_MAX_AGE_MIN ? parseInt(process.env.MAP_LOCATION_MAX_AGE_MIN, 10) : 1440
+      const minUpdatedAt = new Date(Date.now() - maxAgeMin * 60_000)
+      const candidates = await prisma.profile.findMany({
+        where: {
+          latitude: { gte: bbox.minLat, lte: bbox.maxLat },
+          longitude: { gte: bbox.minLng, lte: bbox.maxLng },
+          locationUpdatedAt: { gte: minUpdatedAt },
+          userId: { not: user.id },
+          privacy: { is: { profileVisible: true, incognito: false, hideDistance: false } },
+        },
+        include: { verified: true },
+        take: 500,
+      })
+      const dayKey = new Date().toISOString().slice(0, 10)
+      const filtered = candidates.map(p => {
+        const dist = haversineKm(lat, lon, p.latitude ?? 0, p.longitude ?? 0)
+        return { p, dist }
+      }).filter(x => x.dist <= radiusKm).sort((a, b) => a.dist - b.dist).slice(0, 100)
+      const locations = filtered.map(({ p }) => {
+        let baseLat = p.latitude ?? 0
+        let baseLng = p.longitude ?? 0
+        if (mapGeohashOutPrecision && p.geoHash) {
+          const truncated = p.geoHash.slice(0, Math.max(1, Math.min(mapGeohashOutPrecision, p.geoHash.length)))
+          const c = geohashDecodeCenter(truncated)
+          baseLat = c.lat
+          baseLng = c.lng
+        }
+        const j = jitterLatLng({ lat: baseLat, lng: baseLng, viewerId: user.id, targetId: p.userId, dayKey, minM: mapJitterMinM, maxM: mapJitterMaxM })
+        return { userId: p.userId, displayName: (p.user && p.user.displayName) || '', city: p.city || null, latApprox: j.lat, lngApprox: j.lng, verified: !!p.verified }
+      })
+      sendJSON(res, 200, { ok: true, locations })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
+    return
+  }
+
+  if (req.method === 'POST' && parsed.pathname === '/api/map/consent') {
+    try {
+      const json = await readJsonLimitedCommon(req, 32 * 1024)
+      const cid = getCorrelationId(req)
+      const initData = json.initData || ''
+      const user = await getAuthedUserFromInitData(initData || '')
+      if (!user) { sendJSON(res, 401, { ok: false, code: 'UNAUTH', message: 'initData inválido', correlationId: cid }); return }
+      if (!checkRate(user.id, 'map_consent', 10, 60_000)) { sendJSON(res, 429, { ok: false, code: 'rate_limit', correlationId: cid }); return }
+      const parsedBody = parseOrSendValidationError(res, ZMapConsentBody, json, cid)
+      if (!parsedBody.ok) return
+      const v = parsedBody.data
+      const profile = await prisma.profile.findUnique({ where: { userId: user.id } })
+      if (!profile) { sendJSON(res, 404, { ok: false, code: 'PROFILE_NOT_FOUND', correlationId: cid }); return }
+      await prisma.privacySettings.upsert({
+        where: { profileId: profile.id },
+        update: { mapConsent: v.consent, mapConsentAt: v.consent ? new Date() : null },
+        create: { profileId: profile.id, mapConsent: v.consent, mapConsentAt: v.consent ? new Date() : null, incognito: false, hideDistance: false, profileVisible: true },
+      })
+      if (!v.consent) {
+        await prisma.profile.update({ where: { id: profile.id }, data: { geoHash: null, locationUpdatedAt: null } })
+      }
+      sendJSON(res, 200, { ok: true })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
+    return
+  }
+
+  if (req.method === 'POST' && parsed.pathname === '/api/map/location') {
+    try {
+      const json = await readJsonLimitedCommon(req, 32 * 1024)
+      const cid = getCorrelationId(req)
+      const initData = json.initData || ''
+      const user = await getAuthedUserFromInitData(initData || '')
+      if (!user) { sendJSON(res, 401, { ok: false, code: 'UNAUTH', message: 'initData inválido', correlationId: cid }); return }
+      if (!checkRate(user.id, 'map_location', 5, 60_000)) { sendJSON(res, 429, { ok: false, code: 'rate_limit', correlationId: cid }); return }
+      const parsedBody = parseOrSendValidationError(res, ZMapLocationBody, json, cid)
+      if (!parsedBody.ok) return
+      const v = parsedBody.data
+      const privacy = await prisma.privacySettings.findFirst({ where: { profile: { userId: user.id } } })
+      if (!privacy?.mapConsent) { sendJSON(res, 403, { ok: false, code: 'CONSENT_REQUIRED', correlationId: cid }); return }
+      const profile = await prisma.profile.findUnique({ where: { userId: user.id } })
+      if (!profile) { sendJSON(res, 404, { ok: false, code: 'PROFILE_NOT_FOUND', correlationId: cid }); return }
+      const gh = geohashEncode(v.lat, v.lon, 6)
+      await prisma.profile.update({
+        where: { id: profile.id },
+        data: { latitude: v.lat, longitude: v.lon, geoHash: gh, locationUpdatedAt: new Date() },
+      })
+      sendJSON(res, 200, { ok: true })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
+    return
+  }
+
   if (req.method === 'POST' && parsed.pathname === '/api/matches') {
     let body = ''
     req.on('data', chunk => { body += chunk })
@@ -474,20 +598,23 @@ const server = http.createServer(async (req, res) => {
           sendJSON(res, 401, { ok: false, error: 'initData inválido' })
           return
         }
+        const limit = typeof json.limit === 'number' ? Math.max(1, Math.min(json.limit, 100)) : 50
+        const beforeCreatedAt = json.beforeCreatedAt ? new Date(json.beforeCreatedAt) : null
         const blocks = await prisma.block.findMany({
           where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] },
         })
         const blockedIds = new Set(
           blocks.flatMap(b => [b.blockerId, b.blockedId]).filter(id => id !== user.id)
         )
+        const whereBase = { OR: [{ aId: user.id }, { bId: user.id }] }
         const rows = await prisma.match.findMany({
-          where: { OR: [{ aId: user.id }, { bId: user.id }] },
+          where: beforeCreatedAt ? { ...whereBase, createdAt: { lt: beforeCreatedAt } } : whereBase,
           include: {
             a: true,
             b: true,
           },
           orderBy: { createdAt: 'desc' },
-          take: 50,
+          take: limit,
         })
         const items = rows.map(r => {
           const other = r.aId === user.id ? r.b : r.a
@@ -501,7 +628,8 @@ const server = http.createServer(async (req, res) => {
         }).filter(it => !blockedIds.has(it.userId))
         const privacy = await prisma.privacySettings.findFirst({ where: { profile: { userId: user.id } } })
         const paused = !!privacy?.incognito
-        sendJSON(res, 200, { ok: true, matches: items, paused })
+        const nextCursor = items.length > 0 ? items[items.length - 1].matchedAt : null
+        sendJSON(res, 200, { ok: true, matches: items, paused, nextCursor })
       } catch (err) {
         console.error(err)
         sendJSON(res, 500, { ok: false, error: 'Error interno' })

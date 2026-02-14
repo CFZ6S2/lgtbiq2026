@@ -12,7 +12,18 @@
     "test:validation:run": "cross-env NODE_ENV=test node tests/validation/chat.validation.test.js && node tests/validation/guards.validation.test.js && node tests/validation/me.validation.test.js && node tests/validation/report.validation.test.js && node tests/validation/mod.validation.test.js",
     "test:parity:remote": "cross-env NODE_ENV=test node tests/validation/guards.validation.test.js",
     "test:validation": "start-server-and-test start:demo http://localhost:8080 test:validation:run",
-    "test:all": "npm test && npm run test:validation"
+    "test:map:off:run": "node tests/validation/map.feature-off.validation.test.js",
+    "start:demo:8081": "cross-env DEMO=true PORT=8081 node bot/server.js",
+    "test:map:off": "start-server-and-test start:demo:8081 http://localhost:8081 test:map:off:run",
+    "start:demo:map": "cross-env DEMO=true FEATURE_MAP=true MAP_PAID=true PORT=8081 node bot/server.js",
+    "test:map:paid:run": "node tests/validation/map.paid.validation.test.js",
+    "test:map:paid": "start-server-and-test start:demo:map http://localhost:8081 test:map:paid:run",
+    "start:demo:map-consent": "cross-env DEMO=true FEATURE_MAP=true MAP_REQUIRE_CONSENT=true MAP_PAID=false PORT=8081 node bot/server.js",
+    "test:map:consent:run": "node tests/validation/map.consent.validation.test.js",
+    "test:map:consent": "start-server-and-test start:demo:map-consent http://localhost:8081 test:map:consent:run",
+    "test:map:nearby:run": "node tests/validation/map.nearby.happy.validation.test.js",
+    "test:map:nearby": "start-server-and-test start:demo:8081 http://localhost:8081 test:map:nearby:run",
+    "test:all": "npm test && npm run test:validation && npm run test:map:off && npm run test:map:paid && npm run test:map:nearby"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

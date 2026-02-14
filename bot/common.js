@@ -215,6 +215,15 @@ export const ZDeleteBody = z.object({
   confirm: z.literal(true),
 }).strict()
 
+export const ZMapConsentBody = z.object({
+  consent: z.boolean(),
+}).strict()
+
+export const ZMapLocationBody = z.object({
+  lat: z.number(),
+  lon: z.number(),
+}).strict()
+
 export function csvEscape(value) {
   if (value === null || value === undefined) return ''
   const s = String(value)
@@ -235,6 +244,76 @@ export function toCsv(rows, headerOrder) {
     lines.push(headers.map(h => csvEscape(r?.[h])).join(','))
   }
   return lines.join('\n')
+}
+
+export function geohashEncode(lat, lon, precision = 6) {
+  const base32 = '0123456789bcdefghjkmnpqrstuvwxyz'
+  let minLat = -90, maxLat = 90, minLon = -180, maxLon = 180
+  let hash = ''
+  let bit = 0, ch = 0, even = true
+  while (hash.length < precision) {
+    if (even) {
+      const mid = (minLon + maxLon) / 2
+      if (lon > mid) { ch |= 1 << (4 - bit); minLon = mid } else { maxLon = mid }
+    } else {
+      const mid = (minLat + maxLat) / 2
+      if (lat > mid) { ch |= 1 << (4 - bit); minLat = mid } else { maxLat = mid }
+    }
+    even = !even
+    if (bit < 4) bit++
+    else { hash += base32[ch]; bit = 0; ch = 0 }
+  }
+  return hash
+}
+
+export function geohashDecodeCenter(hash) {
+  const base32 = '0123456789bcdefghjkmnpqrstuvwxyz'
+  let minLat = -90, maxLat = 90, minLon = -180, maxLon = 180
+  let even = true
+  for (let i = 0; i < hash.length; i++) {
+    const ch = base32.indexOf(hash[i])
+    if (ch === -1) break
+    for (let mask = 16; mask >= 1; mask >>= 1) {
+      if (even) {
+        const mid = (minLon + maxLon) / 2
+        if (ch & mask) minLon = mid
+        else maxLon = mid
+      } else {
+        const mid = (minLat + maxLat) / 2
+        if (ch & mask) minLat = mid
+        else maxLat = mid
+      }
+      even = !even
+    }
+  }
+  return { lat: (minLat + maxLat) / 2, lng: (minLon + maxLon) / 2 }
+}
+
+export function hash32(str) {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0)
+}
+export function metersToLat(m) { return m / 111320 }
+export function metersToLng(m, lat) { return m / (111320 * Math.cos(lat * Math.PI / 180)) }
+export function jitterLatLng({ lat, lng, viewerId, targetId, dayKey, minM = 80, maxM = 250 }) {
+  const seed = hash32(String(viewerId) + '|' + String(targetId) + '|' + String(dayKey))
+  const r1 = (seed & 0xffff) / 0xffff
+  const r2 = ((seed >>> 16) & 0xffff) / 0xffff
+  const dist = minM + (maxM - minM) * r1
+  const angle = 2 * Math.PI * r2
+  const dx = dist * Math.cos(angle)
+  const dy = dist * Math.sin(angle)
+  return { lat: lat + metersToLat(dy), lng: lng + metersToLng(dx, lat) }
+}
+export function bboxFromRadiusKm(lat, lng, rKm) {
+  const rM = rKm * 1000
+  const dLat = rM / 111320
+  const dLng = rM / (111320 * Math.cos(lat * Math.PI / 180))
+  return { minLat: lat - dLat, maxLat: lat + dLat, minLng: lng - dLng, maxLng: lng + dLng }
 }
 
 export function exportToCsvRows(exportData) {

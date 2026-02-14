@@ -1,13 +1,15 @@
-const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : {
+  initData: 'demo_init_data',
+  themeParams: {},
+  expand() {},
+  MainButton: { setText() {}, show() {}, onClick() {} },
+  onEvent() {},
+  sendData() {},
+  close() {},
+}
 
 // Función auxiliar para obtener initData de forma segura
-function getInitData() {
-  if (!tg || !tg.initData) {
-    console.warn('No estás ejecutando esto desde Telegram WebApp. Usando modo demo.')
-    return 'demo_init_data'
-  }
-  return tg.initData
-}
+function getInitData() { return tg.initData || 'demo_init_data' }
 
 function applyTheme() {
   if (!tg) return
@@ -33,6 +35,7 @@ function init() {
   const chatSendFile = document.getElementById('chat-send-file')
   const scrollBottomBtn = document.getElementById('scroll-bottom')
   const matchesEl = document.getElementById('matches')
+  let matchesCursor = null
   const filterOrientations = document.getElementById('filterOrientations')
   const filterFriends = document.getElementById('filterFriends')
   const filterRomance = document.getElementById('filterRomance')
@@ -245,10 +248,25 @@ function init() {
         document.getElementById('longitude').value = String(longitude)
       })
     })
-    const loadMoreBtn = document.getElementById('load-more')
-    loadMoreBtn?.addEventListener('click', () => {
-      if (!currentChatUserId) return
-      loadOlderHistory(currentChatUserId, chatLog)
+    const matchesMoreBtn = document.getElementById('matches-load-more') || (() => {
+      const btn = document.createElement('button')
+      btn.id = 'matches-load-more'
+      btn.textContent = 'Cargar más'
+      btn.style.marginTop = '8px'
+      btn.style.display = 'none'
+      matchesEl.parentElement?.appendChild(btn)
+      return btn
+    })()
+    matchesMoreBtn.addEventListener('click', () => {
+      if (!matchesCursor) return
+      loadMatches(matchesEl, (peerId) => {
+        currentChatUserId = peerId
+        window.currentChatUserId = peerId
+        chatLog.innerHTML = ''
+        chatInput.value = ''
+        try { chatInput.focus() } catch {}
+        loadChatHistory(peerId, chatLog)
+      }, { beforeCreatedAt: matchesCursor })
     })
     chatLog.addEventListener('scroll', () => {
       const near = (chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight) < 40
@@ -258,7 +276,72 @@ function init() {
       chatLog.scrollTop = chatLog.scrollHeight
       scrollBottomBtn.style.display = 'none'
     })
+    const mapBtn = document.getElementById('mapBtn') || (() => {
+      const btn = document.createElement('button')
+      btn.id = 'mapBtn'
+      btn.textContent = '🗺️ Mapa (Premium)'
+      btn.style.marginTop = '8px'
+      document.querySelector('main')?.appendChild(btn)
+      return btn
+    })()
+    mapBtn.addEventListener('click', async () => {
+      try {
+        const r = await fetch(`/api/map/nearby?initData=${encodeURIComponent(getInitData())}`)
+        if (r.status === 404 || r.status === 501) { alert('Mapa: coming soon'); return }
+        if (r.status === 409) {
+          const ok = window.confirm('Permitir usar tu ubicación.\nPara mostrar el mapa necesitas habilitar ubicación y aceptar compartir una ubicación aproximada. Puedes cambiarlo cuando quieras.\n\n¿Continuar?')
+          if (!ok) return
+          try {
+            await fetch('/api/map/consent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ initData: getInitData(), consent: true }),
+            })
+          } catch {}
+          if (!navigator.geolocation) return
+          navigator.geolocation.getCurrentPosition(async (pos) => {
+            const { latitude, longitude } = pos.coords
+            try {
+              await fetch('/api/map/location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: getInitData(), lat: latitude, lon: longitude }),
+              })
+            } catch {}
+            const r2 = await fetch(`/api/map/nearby?initData=${encodeURIComponent(getInitData())}&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&radiusKm=5`)
+            const j2 = await r2.json()
+            if (j2.ok) renderMap(j2.locations || [], { lat: latitude, lon: longitude })
+          })
+          return
+        }
+        if (r.status === 402) {
+          const j = await r.json().catch(() => ({}))
+          alert((j && j.message) || 'Mapa disponible con Premium')
+          return
+        }
+        const j = await r.json()
+        if (!j.ok) { alert('No disponible'); return }
+        renderMap(j.locations || [], null)
+      } catch {}
+    })
   }
+
+function renderMap(locations, center) {
+  const el = document.getElementById('map')
+  if (!el) return
+  const map = L.map(el)
+  const c = center ? [center.lat, center.lon] : (locations[0] ? [locations[0].latApprox, locations[0].lngApprox] : [0, 0])
+  map.setView(c, 13)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map)
+  for (const loc of locations) {
+    if (typeof loc.latApprox !== 'number' || typeof loc.lngApprox !== 'number') continue
+    const m = L.marker([loc.latApprox, loc.lngApprox])
+    m.addTo(map).bindPopup((loc.displayName || 'Usuario') + (loc.city ? ` - ${loc.city}` : ''))
+  }
+}
 
 let readObserver = null
 let observedElId = null
@@ -368,17 +451,17 @@ function setupReadObserver(peerId, logEl) {
   })
 }
 
-async function loadMatches(container, onOpenChat) {
+async function loadMatches(container, onOpenChat, opts) {
   try {
     container.setAttribute('aria-busy', 'true')
     const resp = await fetch('/api/matches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: getInitData() }),
+      body: JSON.stringify({ initData: getInitData(), limit: 20, beforeCreatedAt: opts?.beforeCreatedAt }),
     })
     const json = await resp.json()
     if (!json.ok) return
-    container.innerHTML = ''
+    if (!opts?.beforeCreatedAt) container.innerHTML = ''
     if (json.paused) {
       const info = document.createElement('div')
       info.textContent = 'Estás en modo incógnito: no se crearán nuevos matches.'
@@ -398,13 +481,18 @@ async function loadMatches(container, onOpenChat) {
       row.style.marginBottom = '6px'
       const left = document.createElement('div')
       left.textContent = m.displayName || m.username || 'Usuario'
+      const right = document.createElement('div')
       const openBtn = document.createElement('button')
       openBtn.textContent = 'Abrir chat'
       openBtn.onclick = () => onOpenChat(m.userId)
+      right.appendChild(openBtn)
       row.appendChild(left)
-      row.appendChild(openBtn)
+      row.appendChild(right)
       container.appendChild(row)
     }
+    matchesCursor = json.nextCursor || null
+    const btn = document.getElementById('matches-load-more')
+    if (btn) btn.style.display = json.nextCursor ? 'inline-block' : 'none'
     container.removeAttribute('aria-busy')
   } catch {}
 }
