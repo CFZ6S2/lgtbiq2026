@@ -19,4 +19,4 @@ jobs:
       - name: Prisma Validate
         run: npx prisma validate --schema prisma/schema.prisma
       - name: Run Tests
-        run: npm test
+        run: npm run test:all

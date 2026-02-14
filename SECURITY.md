@@ -16,3 +16,9 @@
 - Nunca incluir secretos en el repositorio.
 - Usar variables de entorno según `.env.example`.
 - Revisar accesibilidad y privacidad (incógnito, ocultar distancia).
+
+## Modo demo (DEMO)
+- El modo demo permite autenticación sin `BOT_TOKEN` usando `initData` de demostración.
+- Debe activarse solo en desarrollo, mediante `DEMO=true` en el entorno local.
+- Nunca habilitar `DEMO` en producción: puede permitir acceso no autenticado.
+- Auditoría: revisar despliegues para asegurar `DEMO` está desactivado (`DEMO` ausente o distinto de `true`).

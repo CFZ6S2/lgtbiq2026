@@ -60,3 +60,13 @@ Configura `DATABASE_URL` en `.env` (puedes copiar de `.env.example`). Se recomie
 ## Versionado
 - Seguimos SemVer: MAJOR.MINOR.PATCH
 - Etiquetas de release en Git (`vX.Y.Z`) y changelog en PRs
+
+## Demo mode y tests
+- `npm run test:validation` levanta el servidor local con `DEMO=true` y ejecuta los suites (chat, guards, me, report, mod).
+- Para “smoke tests” remotos contra API/Vercel usa `test:parity:remote`:
+  - Define `TEST_BASES` con las URLs destino.
+  - Para incluir moderación en DEMO remoto, el deployment debe tener:
+    - `DEMO=true`
+    - `DEMO_SECRET=<valor>`
+  - El cliente debe enviar el header `x-demo-secret: <DEMO_SECRET>`.
+- Nota: Nunca habilitar `DEMO=true` en producción o previews.

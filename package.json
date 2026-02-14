@@ -7,10 +7,20 @@
     "start": "node bot/server.js",
     "db:push": "prisma db push --schema prisma/schema.prisma",
     "db:studio": "prisma studio",
-    "test": "node tests/validateInitData.test.js && node tests/api.basic.test.js"
+    "test": "node tests/validateInitData.test.js && node tests/api.basic.test.js",
+    "start:demo": "cross-env DEMO=true node bot/server.js",
+    "test:validation:run": "cross-env NODE_ENV=test node tests/validation/chat.validation.test.js && node tests/validation/guards.validation.test.js && node tests/validation/me.validation.test.js && node tests/validation/report.validation.test.js && node tests/validation/mod.validation.test.js",
+    "test:parity:remote": "cross-env NODE_ENV=test node tests/validation/guards.validation.test.js",
+    "test:validation": "start-server-and-test start:demo http://localhost:8080 test:validation:run",
+    "test:all": "npm test && npm run test:validation"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
-    "prisma": "^6.0.0"
+    "prisma": "^6.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "start-server-and-test": "^2.1.3"
   }
 }
