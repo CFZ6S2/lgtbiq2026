@@ -458,6 +458,18 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'GET' && (parsed.pathname === '/landing' || parsed.pathname === '/register' || parsed.pathname === '/profile' || parsed.pathname === '/discover')) {
+    try {
+      const html = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8')
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.end(html)
+    } catch (err) {
+      res.writeHead(500)
+      res.end('Error')
+    }
+    return
+  }
+
   if (req.method === 'GET' && parsed.pathname === '/api/orientations') {
     try {
       const list = await prisma.orientation.findMany({ orderBy: { name: 'asc' } })
@@ -1077,6 +1089,35 @@ const server = http.createServer(async (req, res) => {
         sendJSON(res, 500, { ok: false, error: 'Error interno' })
       }
     })
+    return
+  }
+  if (req.method === 'POST' && parsed.pathname === '/api/admin/purge-seeds') {
+    try {
+      if (process.env.DEMO !== 'true') { sendJSON(res, 403, { ok: false, error: 'forbidden' }); return }
+      const seeds = await prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { startsWith: 'seed_' } },
+            { displayName: { startsWith: 'Seed ' } },
+          ],
+        },
+        select: { id: true },
+        take: 500,
+      })
+      for (const u of seeds) {
+        await prisma.message.deleteMany({ where: { OR: [{ senderId: u.id }, { recipientId: u.id }] } })
+        await prisma.like.deleteMany({ where: { OR: [{ fromId: u.id }, { toId: u.id }] } })
+        await prisma.match.deleteMany({ where: { OR: [{ aId: u.id }, { bId: u.id }] } })
+        await prisma.block.deleteMany({ where: { OR: [{ blockerId: u.id }, { blockedId: u.id }] } })
+        await prisma.report.deleteMany({ where: { OR: [{ reporterId: u.id }, { reportedId: u.id }] } })
+        await prisma.profile.deleteMany({ where: { userId: u.id } })
+        await prisma.user.delete({ where: { id: u.id } })
+      }
+      sendJSON(res, 200, { ok: true, deleted: seeds.length })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
     return
   }
   if (req.method === 'POST' && parsed.pathname === '/api/report') {

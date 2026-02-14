@@ -1,10 +1,8 @@
 {
   "version": 2,
-  "functions": {
-    "bot/server.vercel.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
+  "builds": [
+    { "src": "bot/server.vercel.js", "use": "@vercel/node", "config": { "includeFiles": ["node_modules/.prisma/**", "prisma/**", "webapp/**", "docs/**"] } }
+  ],
   "routes": [
     { "src": "/(.*)", "dest": "/bot/server.vercel.js" }
   ],

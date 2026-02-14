@@ -11,6 +11,8 @@ model User {
   id           String   @id @default(cuid())
   telegramId   String?  @unique
   username     String?  @unique
+  email        String?  @unique
+  emailVerified Boolean @default(false)
   displayName  String
   language     String?
   createdAt    DateTime @default(now())
@@ -48,6 +50,9 @@ model Profile {
   longitude      Float?
   geoHash        String?
   locationUpdatedAt DateTime?
+  sexualRole     SexualRole?
+  partnerPreference String?
+  themeAccent    String?
   @@index([latitude])
   @@index([longitude])
   @@index([locationUpdatedAt])
@@ -166,6 +171,12 @@ enum MessageType {
   TEXT
   IMAGE
   AUDIO
+}
+
+enum SexualRole {
+  ACTIVO
+  PASIVO
+  VERSATIL
 }
 
 model Stats {

@@ -61,7 +61,16 @@ const haversineKm = haversineKmCommon
 
 async function handleProfileSubmission(data, user) {
   let upsertUser
-  if (user?.id) {
+  if (data.userId) {
+    upsertUser = await prisma.user.update({
+      where: { id: data.userId },
+      data: {
+        username: data.username || undefined,
+        displayName: data.displayName,
+        language: data.meta?.language || 'es',
+      },
+    })
+  } else if (user?.id) {
     upsertUser = await prisma.user.upsert({
       where: { telegramId: String(user.id) },
       update: {
@@ -124,6 +133,9 @@ async function handleProfileSubmission(data, user) {
       longitude: typeof data.location?.longitude === 'number' ? data.location.longitude : null,
       geoHash: (typeof data.location?.latitude === 'number' && typeof data.location?.longitude === 'number') ? geohashEncode(data.location.latitude, data.location.longitude, 6) : null,
       locationUpdatedAt: (typeof data.location?.latitude === 'number' && typeof data.location?.longitude === 'number') ? new Date() : null,
+      sexualRole: data.sexualRole || null,
+      partnerPreference: data.partnerPreference || null,
+      themeAccent: data.themeAccent || null,
       orientations: { set: orientations.map(o => ({ id: o.id })) },
     },
     create: {
@@ -140,6 +152,9 @@ async function handleProfileSubmission(data, user) {
       longitude: typeof data.location?.longitude === 'number' ? data.location.longitude : null,
       geoHash: (typeof data.location?.latitude === 'number' && typeof data.location?.longitude === 'number') ? geohashEncode(data.location.latitude, data.location.longitude, 6) : null,
       locationUpdatedAt: (typeof data.location?.latitude === 'number' && typeof data.location?.longitude === 'number') ? new Date() : null,
+      sexualRole: data.sexualRole || null,
+      partnerPreference: data.partnerPreference || null,
+      themeAccent: data.themeAccent || null,
       orientations: { connect: orientations.map(o => ({ id: o.id })) },
     },
   })
@@ -187,13 +202,59 @@ export default async function handler(req, res) {
   const method = req.method
   const pathname = parsed.pathname
 
-  if (method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
+  if (method === 'GET' && pathname === '/api/health') {
+    const okDb = !!process.env.DATABASE_URL
+    sendJSON(res, 200, { ok: true, db: okDb })
+    return
+  }
+  if (method === 'GET' && (pathname === '/' || pathname === '/index.html' || pathname === '/landing' || pathname === '/register' || pathname === '/profile' || pathname === '/discover')) {
     const html = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8')
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(html)
     return
   }
 
+  if (method === 'POST' && pathname === '/api/auth/register-email') {
+    try {
+      const json = await readJsonLimitedCommon(req, 32 * 1024)
+      const email = String(json.email || '').trim().toLowerCase()
+      if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) { sendJSON(res, 400, { ok: false, error: 'EMAIL_INVALID' }); return }
+      const code = String(Math.floor(100000 + Math.random() * 900000))
+      const exp = new Date(Date.now() + 15 * 60_000)
+      globalThis.__emailRegister = globalThis.__emailRegister || new Map()
+      globalThis.__emailRegister.set(email, { code, exp })
+      sendJSON(res, 200, { ok: true, code })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
+    return
+  }
+
+  if (method === 'POST' && pathname === '/api/auth/verify-email') {
+    try {
+      const json = await readJsonLimitedCommon(req, 32 * 1024)
+      const email = String(json.email || '').trim().toLowerCase()
+      const code = String(json.code || '').trim()
+      const store = globalThis.__emailRegister && globalThis.__emailRegister.get(email)
+      if (!store || store.code !== code || store.exp < new Date()) { sendJSON(res, 400, { ok: false, error: 'CODE_INVALID' }); return }
+      globalThis.__emailRegister.delete(email)
+      const displayName = String(json.displayName || '').trim() || 'Usuario'
+      const username = String(json.username || '').trim() || null
+      let user = await prisma.user.findUnique({ where: { email } })
+      if (!user) {
+        user = await prisma.user.create({ data: { email, emailVerified: true, displayName, username, language: 'es' } })
+      } else {
+        user = await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true, displayName, username } })
+      }
+      await prisma.profile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
+      sendJSON(res, 200, { ok: true, userId: user.id })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
+    return
+  }
   if (method === 'GET' && pathname === '/webapp/styles.css') {
     const css = fs.readFileSync(path.join(webRoot, 'styles.css'), 'utf-8')
     res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' })
@@ -285,15 +346,25 @@ export default async function handler(req, res) {
           },
           take: 20,
         })
+        function rolesCompatible(a, b) {
+          if (!a || !b) return true
+          if (a === 'VERSATIL' || b === 'VERSATIL') return true
+          return (a === 'ACTIVO' && b === 'PASIVO') || (a === 'PASIVO' && b === 'ACTIVO')
+        }
         const visible = candidates.filter(c => {
           if (blockedIds.has(c.id)) return false
           const vis = c.profile?.privacy?.profileVisible ?? true
-          return vis
+          if (!vis) return false
+          if (c.username && c.username.startsWith('seed_')) return false
+          if ((c.displayName || '').startsWith('Seed ')) return false
+          return true
         })
         const userProfile = await prisma.profile.findUnique({
           where: { userId: user.id },
           include: { orientations: true },
         })
+        const userRole = userProfile?.sexualRole || null
+        const partnerPref = typeof json.partnerPreference === 'string' ? json.partnerPreference : (userProfile?.partnerPreference || null)
         const filterOrient = Array.isArray(json.filterOrientations) ? json.filterOrientations : null
         const userOrientNames = new Set(
           (filterOrient && filterOrient.length ? filterOrient : (userProfile?.orientations || []).map(o => o.name))
@@ -317,6 +388,8 @@ export default async function handler(req, res) {
               (!wantsRomance || c.profile?.intentsRomance) &&
               (!wantsPoly || c.profile?.intentsPoly)
             if (!(hasOrientOverlap && intentsOk)) return false
+            if (partnerPref && c.profile?.gender && c.profile.gender !== partnerPref) return false
+            if (!rolesCompatible(userRole, c.profile?.sexualRole || null)) return false
             if (maxDistanceKm != null) {
               const candLoc = {
                 lat: c.profile?.latitude ?? null,
@@ -351,6 +424,36 @@ export default async function handler(req, res) {
         sendJSON(res, 500, { ok: false, error: 'Error interno' })
       }
     })
+    return
+  }
+
+  if (method === 'POST' && pathname === '/api/admin/purge-seeds') {
+    try {
+      if (process.env.DEMO !== 'true') { sendJSON(res, 403, { ok: false, error: 'forbidden' }); return }
+      const seeds = await prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { startsWith: 'seed_' } },
+            { displayName: { startsWith: 'Seed ' } },
+          ],
+        },
+        select: { id: true },
+        take: 500,
+      })
+      for (const u of seeds) {
+        await prisma.message.deleteMany({ where: { OR: [{ senderId: u.id }, { recipientId: u.id }] } })
+        await prisma.like.deleteMany({ where: { OR: [{ fromId: u.id }, { toId: u.id }] } })
+        await prisma.match.deleteMany({ where: { OR: [{ aId: u.id }, { bId: u.id }] } })
+        await prisma.block.deleteMany({ where: { OR: [{ blockerId: u.id }, { blockedId: u.id }] } })
+        await prisma.report.deleteMany({ where: { OR: [{ reporterId: u.id }, { reportedId: u.id }] } })
+        await prisma.profile.deleteMany({ where: { userId: u.id } })
+        await prisma.user.delete({ where: { id: u.id } })
+      }
+      sendJSON(res, 200, { ok: true, deleted: seeds.length })
+    } catch (err) {
+      console.error(err)
+      sendJSON(res, 500, { ok: false, error: 'Error interno' })
+    }
     return
   }
 

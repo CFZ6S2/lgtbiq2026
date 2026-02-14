@@ -19,11 +19,116 @@ function applyTheme() {
   if (theme.text_color) root.style.setProperty('--fg', theme.text_color)
   if (theme.hint_color) root.style.setProperty('--border', theme.hint_color)
   if (theme.button_color) root.style.setProperty('--btnBg', theme.button_color)
-  if (theme.link_color) root.style.setProperty('--link', theme.link_color)
+  if (theme.link_color) { root.style.setProperty('--link', theme.link_color); root.style.setProperty('--accent', theme.link_color) }
 }
 
 function init() {
   applyTheme()
+  const landing = document.getElementById('landing')
+  const register = document.getElementById('register')
+  const appMain = document.getElementById('appMain')
+  const tabs = document.getElementById('tabs')
+  const ctaRegister = document.getElementById('ctaRegister')
+  const ctaExplore = document.getElementById('ctaExplore')
+  const regForm = document.getElementById('register-form')
+  function showSection(name) {
+    if (name === 'landing') {
+      landing.hidden = false; register.hidden = true; appMain.hidden = true; tabs.hidden = true
+      return
+    }
+    if (name === 'register') {
+      landing.hidden = true; register.hidden = false; appMain.hidden = true; tabs.hidden = true
+      try { document.getElementById('regDisplayName').focus() } catch {}
+      return
+    }
+    landing.hidden = true; register.hidden = true; appMain.hidden = false; tabs.hidden = false
+    const ids = ['profile-form','discover','chat','map','support','moderation']
+    for (const id of ids) {
+      const el = document.getElementById(id)
+      if (!el) continue
+      if (id === (name === 'profile' ? 'profile-form' : name)) el.hidden = false
+      else el.hidden = true
+    }
+  }
+  const path = (window.location && window.location.pathname) || '/'
+  const routeMap = { '/landing': 'landing', '/register': 'register', '/profile': 'profile', '/discover': 'discover', '/chat': 'chat', '/map': 'map', '/support': 'support', '/moderation': 'moderation' }
+  const initial = routeMap[path] || 'landing'
+  showSection(initial)
+  if (initial === 'discover') { try { loadFeed(document.getElementById('feed')) } catch {} }
+  if (initial === 'chat') { try { openChatSSE() } catch {} }
+  ctaRegister?.addEventListener('click', () => showSection('register'))
+  ctaExplore?.addEventListener('click', () => { showSection('discover'); loadFeed(document.getElementById('feed')); closeChatSSE() })
+  let chatES = null
+  function openChatSSE() {
+    if (chatES) return
+    chatES = subscribeChat(chatLog)
+  }
+  function closeChatSSE() {
+    try { chatES?.close() } catch {}
+    chatES = null
+  }
+  tabs?.querySelectorAll('button[data-section]')?.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = btn.dataset.section
+      showSection(sec)
+      if (sec === 'discover') loadFeed(feed)
+      if (sec === 'chat') openChatSSE()
+      else closeChatSSE()
+    })
+  })
+  const sendCodeBtn = document.getElementById('registerSendCode')
+  const registerVerifyBtn = document.getElementById('registerVerify')
+  sendCodeBtn?.addEventListener('click', async () => {
+    const email = (document.getElementById('regEmail')?.value || '').trim()
+    if (!email) return
+    try {
+      const r = await fetch('/api/auth/register-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+      const j = await r.json()
+      if (j.ok) alert('Código enviado (demo: ' + j.code + ')')
+    } catch {}
+  })
+  registerVerifyBtn?.addEventListener('click', async () => {
+    const email = (document.getElementById('regEmail')?.value || '').trim()
+    const code = (document.getElementById('regCode')?.value || '').trim()
+    const displayName = document.getElementById('regDisplayName').value.trim() || 'Usuario'
+    const username = document.getElementById('regUsername').value.trim() || undefined
+    if (!email || !code) return
+    try {
+      const r = await fetch('/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code, displayName, username }) })
+      const j = await r.json()
+      if (j.ok && j.userId) {
+        window.localStorage.setItem('userId', j.userId)
+        alert('Correo verificado. Ahora completa tu perfil.')
+        showSection('profile')
+      }
+    } catch {}
+  })
+  regForm?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const displayName = document.getElementById('regDisplayName').value.trim()
+    const username = document.getElementById('regUsername').value.trim()
+    const city = document.getElementById('regCity').value.trim()
+    if (!displayName) return
+    const payload = {
+      profile: {
+        displayName,
+        username,
+        userId: window.localStorage.getItem('userId') || undefined,
+        location: { city },
+        privacy: { profileVisible: true, incognito: false, hideDistance: false, mapConsent: true },
+        themeAccent: (document.getElementById('themeAccent')?.value || '').trim() || undefined,
+      }
+    }
+    try {
+      await fetch('/api/sendData', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      showSection('profile')
+      closeChatSSE()
+    } catch {}
+  })
   const form = document.getElementById('profile-form')
   const submitBtn = document.getElementById('submitBtn')
   const feed = document.getElementById('feed')
@@ -64,8 +169,6 @@ function init() {
     tg.MainButton.show()
     tg.onEvent('themeChanged', applyTheme)
     submitBtn.style.display = 'none'
-    loadFeed(feed)
-    subscribeChat(chatLog)
     loadMatches(matchesEl, (peerId) => {
       currentChatUserId = peerId
       window.currentChatUserId = peerId
@@ -83,7 +186,8 @@ function init() {
       const md = maxDistanceKm.value ? Number(maxDistanceKm.value) : undefined
       const onlyVerified = !!filterVerified.checked
       const city = (filterCity.value || '').trim() || undefined
-      loadFeed(feed, { filterOrientations: selected, intentsFriends, intentsRomance, intentsPoly, maxDistanceKm: md, onlyVerified, city })
+    const partnerPreference = document.getElementById('filterPartnerPref')?.value || undefined
+    loadFeed(feed, { filterOrientations: selected, intentsFriends, intentsRomance, intentsPoly, maxDistanceKm: md, onlyVerified, city, partnerPreference })
     })
     incognitoToggle?.addEventListener('change', async () => {
       try {
@@ -342,6 +446,15 @@ function renderMap(locations, center) {
     m.addTo(map).bindPopup((loc.displayName || 'Usuario') + (loc.city ? ` - ${loc.city}` : ''))
   }
 }
+
+  const themeAccentInput = document.getElementById('themeAccent')
+  themeAccentInput?.addEventListener('input', () => {
+    const val = (themeAccentInput.value || '').trim()
+    if (!val) return
+    const root = document.documentElement
+    root.style.setProperty('--accent', val)
+    root.style.setProperty('--link', val)
+  })
 
 let readObserver = null
 let observedElId = null
@@ -728,7 +841,8 @@ function renderFeed(feedEl, recs) {
     likeBtn.textContent = 'Me gusta'
     likeBtn.setAttribute('aria-label', `Me gusta a ${title.textContent}`)
     likeBtn.dataset.likeBtn = 'true'
-    if (incognitoToggle && incognitoToggle.checked) {
+    const incT = document.getElementById('incognito')
+    if (incT && incT.checked) {
       likeBtn.disabled = true
       likeBtn.title = 'Modo incógnito activo'
     }
@@ -863,6 +977,7 @@ function subscribeChat(chatEl) {
     }
   }
   connect()
+  return es
 }
 
 function collectData() {

@@ -23,7 +23,8 @@
     "test:map:consent": "start-server-and-test start:demo:map-consent http://localhost:8081 test:map:consent:run",
     "test:map:nearby:run": "node tests/validation/map.nearby.happy.validation.test.js",
     "test:map:nearby": "start-server-and-test start:demo:8081 http://localhost:8081 test:map:nearby:run",
-    "test:all": "npm test && npm run test:validation && npm run test:map:off && npm run test:map:paid && npm run test:map:nearby"
+    "test:all": "npm test && npm run test:validation && npm run test:map:off && npm run test:map:paid && npm run test:map:nearby",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

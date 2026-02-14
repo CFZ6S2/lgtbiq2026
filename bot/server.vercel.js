@@ -202,6 +202,11 @@ export default async function handler(req, res) {
   const method = req.method
   const pathname = parsed.pathname
 
+  if (method === 'GET' && pathname === '/api/health') {
+    const okDb = !!process.env.DATABASE_URL
+    sendJSON(res, 200, { ok: true, db: okDb })
+    return
+  }
   if (method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
     serveFile(res, path.join(webRoot, 'index.html'), 'text/html; charset=utf-8')
     return
@@ -214,6 +219,13 @@ export default async function handler(req, res) {
     serveFile(res, path.join(webRoot, 'app.js'), 'application/javascript; charset=utf-8')
     return
   }
+  if (method === 'GET' && (pathname === '/landing' || pathname === '/register')) {
+    const html = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8')
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(html)
+    return
+  }
+
   if (method === 'GET' && pathname === '/docs/privacidad.md') {
     serveFile(res, path.join(docsRoot, 'privacidad.md'), 'text/markdown; charset=utf-8')
     return

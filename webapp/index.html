@@ -13,7 +13,52 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1jTc2vRl6P8dQG9XKqg7jCp0V+XyKQbUQdQ2vQ3s=" crossorigin=""></script>
 </head>
 <body>
-  <main class="container">
+  <section id="landing" class="container">
+    <header class="header">
+      <h1>Plataforma LGBTI</h1>
+      <p>Conecta, descubre y chatea con seguridad y privacidad.</p>
+    </header>
+    <div class="actions">
+      <button id="ctaRegister">Registrarse</button>
+      <button id="ctaExplore">Explorar</button>
+    </div>
+  </section>
+  <section id="register" class="container" hidden>
+    <header class="header">
+      <h1>Registro</h1>
+      <p>Crea tu perfil básico para empezar.</p>
+    </header>
+    <form id="register-form">
+      <label for="regDisplayName">Nombre visible</label>
+      <input id="regDisplayName" type="text" required>
+      <label for="regUsername">Usuario</label>
+      <input id="regUsername" type="text">
+      <label for="regEmail">Correo electrónico</label>
+      <input id="regEmail" type="email" placeholder="tucorreo@example.com">
+      <div class="actions">
+        <button type="button" id="registerSendCode">Enviar código</button>
+      </div>
+      <label for="regCode">Código de verificación</label>
+      <input id="regCode" type="text" inputmode="numeric" pattern="[0-9]{6}" placeholder="123456">
+      <div class="actions">
+        <button type="button" id="registerVerify">Verificar correo</button>
+      </div>
+      <label for="regCity">Ciudad</label>
+      <input id="regCity" type="text">
+      <div class="actions">
+        <button type="submit" id="registerSubmit">Crear perfil</button>
+      </div>
+    </form>
+  </section>
+  <nav id="tabs" class="container" hidden>
+    <button data-section="profile">Perfil</button>
+    <button data-section="discover">Descubrir</button>
+    <button data-section="chat">Chat</button>
+    <button data-section="map">Mapa</button>
+    <button data-section="support">Recursos</button>
+    <button data-section="moderation">Moderación</button>
+  </nav>
+  <main id="appMain" class="container" hidden>
     <header class="header">
       <h1>Tu perfil</h1>
       <p>Configura tu perfil inclusivo y tu privacidad.</p>
@@ -41,6 +86,15 @@
         <option value="trans">Trans</option>
         <option value="intersexual">Intersexual</option>
         <option value="otro">Otro</option>
+      </select>
+      <label for="themeAccent">Color de acento</label>
+      <input id="themeAccent" name="themeAccent" type="color" value="#8aa4ff">
+      <label for="sexualRole">Rol sexual</label>
+      <select id="sexualRole" name="sexualRole">
+        <option value="">Selecciona</option>
+        <option value="ACTIVO">Activo</option>
+        <option value="PASIVO">Pasivo</option>
+        <option value="VERSATIL">Versátil</option>
       </select>
 
       <label for="genderCustom">Género personalizado</label>
@@ -110,7 +164,7 @@
       </div>
     </form>
 
-    <section class="discover">
+    <section class="discover" id="discover">
       <h2>Descubrir</h2>
       <div class="filters">
         <label>
@@ -136,6 +190,13 @@
           </label>
           <input id="filterCity" type="text" placeholder="Ciudad">
           <input id="maxDistanceKm" type="number" min="1" step="1" placeholder="Distancia km">
+          <select id="filterPartnerPref">
+            <option value="">Tipo de individuo</option>
+            <option value="masculino">Masculino</option>
+            <option value="femenino">Femenino</option>
+            <option value="no-binario">No binario</option>
+            <option value="trans">Trans</option>
+          </select>
           <button id="applyFilters">Aplicar filtros</button>
         </div>
         <div id="incognitoNote" hidden role="note" aria-live="polite">Estás en modo incógnito: no puedes dar Me gusta.</div>
@@ -143,7 +204,7 @@
       <div id="feed" aria-live="polite" role="list" aria-label="Personas recomendadas"></div>
     </section>
 
-    <section class="chat">
+    <section class="chat" id="chat">
       <h2>Chat</h2>
       <div id="typing" aria-live="polite" aria-atomic="true"></div>
       <div class="actions">
@@ -160,7 +221,7 @@
         <button id="scroll-bottom" style="display:none" aria-label="Ir al final">Ir al final</button>
       </div>
     </section>
-    <section class="map">
+    <section class="map" id="map">
       <h2>Mapa</h2>
       <div id="map" style="height:60vh;border:1px solid var(--border,#333);border-radius:10px;"></div>
       <div class="actions">
@@ -168,7 +229,7 @@
       </div>
     </section>
 
-    <section class="support">
+    <section class="support" id="support">
       <h2>Recursos</h2>
       <ul>
         <li><a href="../docs/privacidad.md">Política de privacidad</a></li>
@@ -204,7 +265,6 @@
   </main>
 
   <script src="/webapp/app.js"></script>
-</body>
 <style>
   :root {
     color-scheme: light dark;
