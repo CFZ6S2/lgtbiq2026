@@ -3,7 +3,7 @@ import * as admin from 'firebase-admin';
 import { z } from 'zod';
 import * as geofire from 'geofire-common';
 
-const db = admin.firestore();
+// const db = admin.firestore();
 
 // Validation schemas
 const ZSendDataBody = z.object({
@@ -37,16 +37,16 @@ const ZSendDataBody = z.object({
   })
 });
 
-const ZRecsBody = z.object({
-  initData: z.string(),
-  filterOrientations: z.array(z.string()).optional(),
-  intentsFriends: z.boolean().optional(),
-  intentsRomance: z.boolean().optional(),
-  intentsPoly: z.boolean().optional(),
-  onlyVerified: z.boolean().optional(),
-  city: z.string().optional(),
-  maxDistanceKm: z.number().optional()
-});
+// const ZRecsBody = z.object({
+//   initData: z.string(),
+//   filterOrientations: z.array(z.string()).optional(),
+//   intentsFriends: z.boolean().optional(),
+//   intentsRomance: z.boolean().optional(),
+//   intentsPoly: z.boolean().optional(),
+//   onlyVerified: z.boolean().optional(),
+//   city: z.string().optional(),
+//   maxDistanceKm: z.number().optional()
+// });
 
 // Helper functions
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -107,7 +107,7 @@ export const handleProfileSubmission = async (req: functions.Request, res: funct
       latitude: profile.location?.latitude || null,
       longitude: profile.location?.longitude || null,
       geoHash: profile.location?.latitude && profile.location?.longitude ? 
-        geofire.geohash([profile.location.latitude, profile.location.longitude], 6) : null,
+        geofire.geohashForLocation([profile.location.latitude, profile.location.longitude]) : null,
       locationUpdatedAt: profile.location?.latitude && profile.location?.longitude ? 
         admin.firestore.FieldValue.serverTimestamp() : null
     };
@@ -157,8 +157,8 @@ export const handleProfileSubmission = async (req: functions.Request, res: funct
 
 export const handleRecommendations = async (req: functions.Request, res: functions.Response, db: admin.firestore.Firestore) => {
   try {
-    const body = ZRecsBody.parse(req.body);
-    const { initData } = body;
+    // const body = ZRecsBody.parse(req.body);
+    // const { initData } = body;
     
     // Validate user (simplified - implement proper validation)
     const userId = 'validated_user_id'; // Placeholder
@@ -169,7 +169,7 @@ export const handleRecommendations = async (req: functions.Request, res: functio
       return sendJSON(res, 404, { ok: false, error: 'Profile not found' });
     }
     
-    const userData = userProfile.data()!;
+    // const userData = userProfile.data();
     
     // Get blocked users
     const blocks = await db.collection('blocks')

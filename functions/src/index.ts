@@ -1,7 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import * as cors from 'cors';
-import { validateInitData } from './validateInitData';
+// import cors from 'cors';
 import { 
   handleProfileSubmission, 
   handleRecommendations, 
@@ -22,33 +21,32 @@ import {
   handleModerationReports,
   handleModerationVerify,
   handleModerationBlock,
-  handleOrientations,
-  handleStats
+  handleOrientations
 } from './api';
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // Enable CORS
-const corsHandler = cors({ origin: true });
+// const corsHandler = cors({ origin: true });
 
 // Helper to wrap functions with CORS
-const withCors = (fn: functions.HttpsFunction) => {
-  return functions.https.onRequest((req, res) => {
-    corsHandler(req, res, () => fn(req, res));
-  });
-};
+// const withCors = (fn: functions.HttpsFunction) => {
+//   return functions.https.onRequest((req, res) => {
+//     corsHandler(req, res, () => fn(req, res));
+//   });
+// };
 
 // Authentication helper
-const getAuthedUser = async (initData: string): Promise<any> => {
-  if (!initData) return null;
-  
-  const validation = validateInitData(initData, process.env.BOT_TOKEN || '');
-  if (!validation.valid) return null;
-  
-  const userDoc = await db.collection('users').doc(String(validation.user.id)).get();
-  return userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
-};
+// const getAuthedUser = async (initData: string): Promise<any> => {
+//   if (!initData) return null;
+//   
+//   const validation = validateInitData(initData, process.env.BOT_TOKEN || '');
+//   if (!validation.valid || !validation.user) return null;
+//   
+//   const userDoc = await db.collection('users').doc(String(validation.user.id)).get();
+//   return userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
+// };
 
 // Main API function
 export const api = functions.https.onRequest(async (req, res) => {
