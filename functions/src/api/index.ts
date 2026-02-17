@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 import { handleRecommendations, handleDiscoverySettings, handleDiscoveryAction, handleDiscoveryStats } from './recommendations.js';
 import { moderationHandlers } from './moderation.js';
 import { handleProfileSubmission, handleMatches, handleChatHistory, handleSendMessage } from './legacy.js';
+import { handleGetDiscoverySettings, handleUpdateDiscoverySettings, handleGetUserProfile, handleCreateUserReport } from './users.js';
 
 // Initialize Firebase Admin
 const db = admin.firestore();
@@ -147,9 +148,54 @@ export const apiHealthV2 = functions
           recommendations: true,
           moderation: true,
           discovery: true,
-          legacy: true
+          legacy: true,
+          users: true
         }
       });
+    });
+  });
+
+// Users API - Preferencias y configuración de usuario
+export const apiUsersV2 = functions
+  .region('us-central1')
+  .https
+  .onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+      try {
+        const path = req.path;
+        const method = req.method;
+        
+        switch (path) {
+          // Configuración de descubrimiento
+          case '/api/users/discovery':
+            if (method === 'GET') {
+              await handleGetDiscoverySettings(req, res);
+            } else if (method === 'PUT') {
+              await handleUpdateDiscoverySettings(req, res);
+            }
+            return;
+            
+          // Perfil de usuario
+          case '/api/users/profile':
+            if (method === 'GET') {
+              await handleGetUserProfile(req, res);
+            }
+            return;
+            
+          // Reportar usuario
+          case '/api/users/report':
+            if (method === 'POST') {
+              await handleCreateUserReport(req, res);
+            }
+            return;
+            
+          default:
+            res.status(404).json({ ok: false, error: 'Endpoint not found' });
+        }
+      } catch (error) {
+        console.error('Users API Error:', error);
+        res.status(500).json({ ok: false, error: 'Internal server error' });
+      }
     });
   });
 
@@ -159,5 +205,9 @@ export {
   handleDiscoverySettings,
   handleDiscoveryAction,
   handleDiscoveryStats,
-  moderationHandlers
+  moderationHandlers,
+  handleGetDiscoverySettings,
+  handleUpdateDiscoverySettings,
+  handleGetUserProfile,
+  handleCreateUserReport
 };

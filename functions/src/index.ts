@@ -194,5 +194,6 @@ export {
   apiLegacyV2,
   apiDiscoveryV2,
   apiModerationV2,
-  apiHealthV2
+  apiHealthV2,
+  apiUsersV2
 } from './api/index.js';

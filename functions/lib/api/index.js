@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.moderationHandlers = exports.handleDiscoveryStats = exports.handleDiscoveryAction = exports.handleDiscoverySettings = exports.handleRecommendations = exports.apiHealthV2 = exports.apiModerationV2 = exports.apiDiscoveryV2 = exports.apiLegacyV2 = void 0;
+exports.handleCreateUserReport = exports.handleGetUserProfile = exports.handleUpdateDiscoverySettings = exports.handleGetDiscoverySettings = exports.moderationHandlers = exports.handleDiscoveryStats = exports.handleDiscoveryAction = exports.handleDiscoverySettings = exports.handleRecommendations = exports.apiUsersV2 = exports.apiHealthV2 = exports.apiModerationV2 = exports.apiDiscoveryV2 = exports.apiLegacyV2 = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const recommendations_js_1 = require("./recommendations.js");
@@ -34,6 +34,11 @@ Object.defineProperty(exports, "handleDiscoveryStats", { enumerable: true, get: 
 const moderation_js_1 = require("./moderation.js");
 Object.defineProperty(exports, "moderationHandlers", { enumerable: true, get: function () { return moderation_js_1.moderationHandlers; } });
 const legacy_js_1 = require("./legacy.js");
+const users_js_1 = require("./users.js");
+Object.defineProperty(exports, "handleGetDiscoverySettings", { enumerable: true, get: function () { return users_js_1.handleGetDiscoverySettings; } });
+Object.defineProperty(exports, "handleUpdateDiscoverySettings", { enumerable: true, get: function () { return users_js_1.handleUpdateDiscoverySettings; } });
+Object.defineProperty(exports, "handleGetUserProfile", { enumerable: true, get: function () { return users_js_1.handleGetUserProfile; } });
+Object.defineProperty(exports, "handleCreateUserReport", { enumerable: true, get: function () { return users_js_1.handleCreateUserReport; } });
 // Initialize Firebase Admin
 const db = admin.firestore();
 // CORS handler
@@ -169,9 +174,51 @@ exports.apiHealthV2 = functions
                 recommendations: true,
                 moderation: true,
                 discovery: true,
-                legacy: true
+                legacy: true,
+                users: true
             }
         });
+    });
+});
+// Users API - Preferencias y configuración de usuario
+exports.apiUsersV2 = functions
+    .region('us-central1')
+    .https
+    .onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        try {
+            const path = req.path;
+            const method = req.method;
+            switch (path) {
+                // Configuración de descubrimiento
+                case '/api/users/discovery':
+                    if (method === 'GET') {
+                        await (0, users_js_1.handleGetDiscoverySettings)(req, res);
+                    }
+                    else if (method === 'PUT') {
+                        await (0, users_js_1.handleUpdateDiscoverySettings)(req, res);
+                    }
+                    return;
+                // Perfil de usuario
+                case '/api/users/profile':
+                    if (method === 'GET') {
+                        await (0, users_js_1.handleGetUserProfile)(req, res);
+                    }
+                    return;
+                // Reportar usuario
+                case '/api/users/report':
+                    if (method === 'POST') {
+                        await (0, users_js_1.handleCreateUserReport)(req, res);
+                    }
+                    return;
+                default:
+                    res.status(404).json({ ok: false, error: 'Endpoint not found' });
+            }
+        }
+        catch (error) {
+            console.error('Users API Error:', error);
+            res.status(500).json({ ok: false, error: 'Internal server error' });
+        }
     });
 });
 //# sourceMappingURL=index.js.map
