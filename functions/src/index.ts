@@ -188,3 +188,11 @@ export const updateMessageStats = functions.firestore
       messages: admin.firestore.FieldValue.increment(1)
     }, { merge: true });
   });
+
+// Import and export new API functions
+export {
+  apiLegacyV2,
+  apiDiscoveryV2,
+  apiModerationV2,
+  apiHealthV2
+} from './api/index.js';

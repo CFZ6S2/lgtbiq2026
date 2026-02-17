@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMessageStats = exports.updateStats = exports.createMatch = exports.api = void 0;
+exports.apiHealthV2 = exports.apiModerationV2 = exports.apiDiscoveryV2 = exports.apiLegacyV2 = exports.updateMessageStats = exports.updateStats = exports.createMatch = exports.api = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 // import cors from 'cors';
@@ -161,4 +161,10 @@ exports.updateMessageStats = functions.firestore
         messages: admin.firestore.FieldValue.increment(1)
     }, { merge: true });
 });
+// Import and export new API functions
+var index_js_1 = require("./api/index.js");
+Object.defineProperty(exports, "apiLegacyV2", { enumerable: true, get: function () { return index_js_1.apiLegacyV2; } });
+Object.defineProperty(exports, "apiDiscoveryV2", { enumerable: true, get: function () { return index_js_1.apiDiscoveryV2; } });
+Object.defineProperty(exports, "apiModerationV2", { enumerable: true, get: function () { return index_js_1.apiModerationV2; } });
+Object.defineProperty(exports, "apiHealthV2", { enumerable: true, get: function () { return index_js_1.apiHealthV2; } });
 //# sourceMappingURL=index.js.map

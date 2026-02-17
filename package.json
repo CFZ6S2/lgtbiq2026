@@ -31,7 +31,9 @@
     "firebase:deploy:hosting": "firebase deploy --only hosting"
   },
   "dependencies": {
+    "@prisma/client": "^7.4.0",
     "firebase-admin": "^11.11.1",
+    "prisma": "^7.4.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,0 +1,279 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String           @id @default(cuid())
+  telegramId    String           @unique
+  username      String?
+  displayName   String
+  language      String           @default("es")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  role          Role             @default(USER)
+
+  // Relations
+  profile       Profile?
+  discoverySettings DiscoverySettings?
+  sentMessages  Message[]        @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  sentLikes     Like[]           @relation("SentLikes")
+  receivedLikes Like[]           @relation("ReceivedLikes")
+  blockedUsers  Block[]          @relation("BlockedUsers")
+  blockedBy     Block[]          @relation("BlockedByUsers")
+  sentReports   Report[]         @relation("SentReports")
+  receivedReports Report[]       @relation("ReceivedReports")
+  matchesA      Match[]          @relation("MatchesA")
+  matchesB      Match[]          @relation("MatchesB")
+  notifications Notification[]
+  eventAttendees EventAttendee[]
+  auditLogs     AuditLog[]       @relation("AuditLogs")
+  targetAuditLogs AuditLog[]     @relation("TargetAuditLogs")
+}
+
+model Profile {
+  id                String           @id @default(cuid())
+  user              User             @relation(fields: [userId], references: [id])
+  userId            String           @unique
+  bio               String?
+  city              String?
+  orientationId     String?
+  orientation       Orientation?     @relation(fields: [orientationId], references: [id])
+  latitude          Float?
+  longitude         Float?
+  locationUpdatedAt DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Privacy settings
+  privacy           PrivacySettings?
+  verification      Verification?
+  moderationFlags   ModerationFlags?
+}
+
+model DiscoverySettings {
+  id                  String   @id @default(cuid())
+  user                User     @relation(fields: [userId], references: [id])
+  userId              String   @unique
+
+  // Filtros de edad
+  minAge              Int      @default(18)
+  maxAge              Int      @default(99)
+
+  // Filtros de distancia (en km)
+  maxDistance         Int      @default(50)
+
+  // Qué busca
+  interestedInGender  String[] // Mapea a strings de género
+  interestedInRoles   SexualRole[]
+  
+  // Intenciones
+  lookingForFriends   Boolean  @default(true)
+  lookingForRomance   Boolean  @default(true)
+  lookingForPoly      Boolean  @default(true)
+
+  updatedAt           DateTime @updatedAt
+}
+
+model PrivacySettings {
+  id              String   @id @default(cuid())
+  profile         Profile  @relation(fields: [profileId], references: [id])
+  profileId       String   @unique
+  incognito       Boolean  @default(false)
+  profileVisible  Boolean  @default(true)
+  showLocation    Boolean  @default(false)
+  showOnline      Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Verification {
+  id          String           @id @default(cuid())
+  profile     Profile          @relation(fields: [profileId], references: [id])
+  profileId   String           @unique
+  verified    Boolean          @default(false)
+  verifiedAt  DateTime?
+  verifiedBy  String?
+  reason      String?
+  createdAt   DateTime         @default(now())
+}
+
+model ModerationFlags {
+  id          String   @id @default(cuid())
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  profileId   String   @unique
+  flags       Int      @default(0) // Bitmask de flags
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Message {
+  id           String   @id @default(cuid())
+  sender       User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId     String
+  recipient    User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  recipientId  String
+  content      String
+  read         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([senderId, createdAt])
+  @@index([recipientId, createdAt])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  from      User     @relation("SentLikes", fields: [fromId], references: [id])
+  fromId    String
+  to        User     @relation("ReceivedLikes", fields: [toId], references: [id])
+  toId      String
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blocker   User     @relation("BlockedUsers", fields: [blockerId], references: [id])
+  blockerId String
+  blocked   User     @relation("BlockedByUsers", fields: [blockedId], references: [id])
+  blockedId String
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporter    User     @relation("SentReports", fields: [reporterId], references: [id])
+  reporterId  String
+  reported    User     @relation("ReceivedReports", fields: [reportedId], references: [id])
+  reportedId  String
+  reason      String
+  details     String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  a         User        @relation("MatchesA", fields: [aId], references: [id])
+  aId       String
+  b         User        @relation("MatchesB", fields: [bId], references: [id])
+  bId       String
+  status    MatchStatus @default(ACTIVE)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+model Event {
+  id          String          @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  location    String
+  latitude    Float?
+  longitude   Float?
+  capacity    Int?
+  isCancelled Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  attendees   EventAttendee[]
+}
+
+model EventAttendee {
+  id        String      @id @default(cuid())
+  event     Event       @relation(fields: [eventId], references: [id])
+  eventId   String
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  status    RSVPStatus  @default(GOING)
+  createdAt DateTime    @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model Orientation {
+  id   String @id @default(cuid())
+  name String @unique
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actor       User     @relation("AuditLogs", fields: [actorId], references: [id])
+  actorId     String
+  targetId    String
+  action      String
+  details     Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
+}
+
+// Enums
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+enum MatchStatus {
+  ACTIVE
+  BLOCKED
+  EXPIRED
+}
+
+enum NotificationType {
+  NEW_MATCH
+  NEW_MESSAGE
+  EVENT_INVITE
+  SYSTEM_ALERT
+  PROFILE_VIEW
+}
+
+enum RSVPStatus {
+  GOING
+  INTERESTED
+  NOT_GOING
+}
+
+enum SexualRole {
+  TOP
+  BOTTOM
+  VERSATILE
+  OTHER
+}
