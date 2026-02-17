@@ -1,7 +1,7 @@
 {
   "version": 2,
   "builds": [
-    { "src": "bot/server.vercel.js", "use": "@vercel/node", "config": { "includeFiles": ["node_modules/.prisma/**", "prisma/**", "webapp/**", "docs/**"] } }
+    { "src": "bot/server.vercel.js", "use": "@vercel/node", "config": { "includeFiles": ["node_modules/.prisma/**", "prisma/**", "webapp/**", "docs/**", "frontend/dist/**"] } }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "/bot/server.vercel.js" }

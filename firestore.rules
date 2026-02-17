@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isProfileVisible(userId) {
+      return get(/databases/$(database)/documents/privacySettings/$(userId)).data.profileVisible != false;
+    }
+    
+    function isNotIncognito(userId) {
+      return get(/databases/$(database)/documents/privacySettings/$(userId)).data.incognito != true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && 
+        (isOwner(userId) || (isProfileVisible(userId) && isNotIncognito(userId)));
+      allow create: if true; // Allow registration
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if false; // No user deletion through API
+    }
+
+    // Profiles collection
+    match /profiles/{userId} {
+      allow read: if isAuthenticated() && 
+        (isOwner(userId) || (isProfileVisible(userId) && isNotIncognito(userId)));
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // PrivacySettings collection
+    match /privacySettings/{userId} {
+      allow read: if isAuthenticated() && 
+        (isOwner(userId) || isProfileVisible(userId));
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Verification collection
+    match /verification/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+        (isOwner(userId) || 
+         request.auth.token.role == 'moderator' ||
+         request.auth.token.role == 'admin');
+    }
+
+    // Likes collection
+    match /likes/{likeId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+        request.resource.data.fromId == request.auth.uid &&
+        request.resource.data.fromId != request.resource.data.toId;
+      allow delete: if isAuthenticated() && resource.data.fromId == request.auth.uid;
+    }
+
+    // Matches collection
+    match /matches/{matchId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.aId == request.auth.uid || resource.data.bId == request.auth.uid);
+      allow create: if false; // Only created by cloud functions
+      allow delete: if false; // Matches don't get deleted
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.senderId != request.resource.data.recipientId;
+      allow update: if isAuthenticated() && 
+        (resource.data.recipientId == request.auth.uid && request.resource.data.keys().hasAll(['read', 'readAt']));
+      allow delete: if false;
+    }
+
+    // Blocks collection
+    match /blocks/{blockId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.blockerId == request.auth.uid || resource.data.blockedId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+        request.resource.data.blockerId == request.auth.uid &&
+        request.resource.data.blockerId != request.resource.data.blockedId;
+      allow delete: if isAuthenticated() && resource.data.blockerId == request.auth.uid;
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.reporterId == request.auth.uid || 
+         request.auth.token.role == 'moderator' ||
+         request.auth.token.role == 'admin');
+      allow create: if isAuthenticated() && 
+        request.resource.data.reporterId == request.auth.uid;
+      allow update: if false; // Reports are read-only after creation
+      allow delete: if false;
+    }
+
+    // Stats collection (read-only for users)
+    match /stats/{statId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only cloud functions can write stats
+    }
+
+    // Orientations collection (read-only)
+    match /orientations/{orientationId} {
+      allow read: if true;
+      allow write: if false; // Only admins can modify orientations
+    }
+  }
+}

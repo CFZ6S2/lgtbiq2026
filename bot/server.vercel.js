@@ -219,10 +219,32 @@ export default async function handler(req, res) {
     serveFile(res, path.join(webRoot, 'app.js'), 'application/javascript; charset=utf-8')
     return
   }
-  if (method === 'GET' && (pathname === '/landing' || pathname === '/register')) {
-    const html = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8')
+  if (method === 'GET' && (pathname === '/landing' || pathname === '/register' || pathname === '/profile' || pathname === '/discover' || pathname === '/react-demo')) {
+    const file = pathname === '/react-demo' ? 'react-demo.html' : 'index.html'
+    const html = fs.readFileSync(path.join(webRoot, file), 'utf-8')
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
     res.end(html)
+    return
+  }
+  if (method === 'GET' && pathname === '/react') {
+    const html = fs.readFileSync(path.join(path.resolve(__dirname, '..'), 'frontend', 'dist', 'index.html'), 'utf-8')
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.end(html)
+    return
+  }
+  if (method === 'GET' && pathname.startsWith('/react/')) {
+    try {
+      const rel = pathname.replace('/react/', '')
+      const filePath = path.join(path.resolve(__dirname, '..'), 'frontend', 'dist', rel)
+      const ext = path.extname(filePath).toLowerCase()
+      const ct = ext === '.js' ? 'application/javascript' : (ext === '.css' ? 'text/css' : 'application/octet-stream')
+      const buf = fs.readFileSync(filePath)
+      res.writeHead(200, { 'Content-Type': ct })
+      res.end(buf)
+    } catch (err) {
+      res.writeHead(404)
+      res.end('Not found')
+    }
     return
   }
 

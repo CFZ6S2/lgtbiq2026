@@ -24,6 +24,9 @@
     "test:map:nearby:run": "node tests/validation/map.nearby.happy.validation.test.js",
     "test:map:nearby": "start-server-and-test start:demo:8081 http://localhost:8081 test:map:nearby:run",
     "test:all": "npm test && npm run test:validation && npm run test:map:off && npm run test:map:paid && npm run test:map:nearby",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:preview": "npm --prefix frontend run preview",
     "postinstall": "prisma generate"
   },
   "dependencies": {

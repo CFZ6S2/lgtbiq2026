@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Import/merge de tema UI moderno ---- */
+:root{
+  --bg0: #0b1020;
+  --bg1: #0f1630;
+  --card: rgba(255,255,255,.08);
+  --card2: rgba(255,255,255,.12);
+  --stroke: rgba(255,255,255,.14);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.72);
+  --pink: #ff4fd8;
+  --violet: #7c5cff;
+  --aqua: #2de2e6;
+  --lime: #a7ff4f;
+  --warn: #ffcc66;
+  --shadow: 0 18px 50px rgba(0,0,0,.45);
+  --shadow2: 0 12px 26px rgba(0,0,0,.35);
+  --radius-xl: 26px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --space-1: .5rem;
+  --space-2: .85rem;
+  --space-3: 1.1rem;
+  --space-4: 1.6rem;
+  --space-5: 2.4rem;
+  --max: 1120px;
+  --focus: 0 0 0 4px rgba(124,92,255,.35);
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  pointer-events:none;
+  opacity:.35;
+}
+.btn{
+  --btn-bg: rgba(255,255,255,.10);
+  --btn-stroke: rgba(255,255,255,.18);
+  display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+  padding:.85rem 1.05rem; border-radius: 14px; border: 1px solid var(--btn-stroke);
+  background: var(--btn-bg); color: var(--text); text-decoration:none; font-weight:700;
+  box-shadow: 0 10px 20px rgba(0,0,0,.22); transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  cursor:pointer; user-select:none;
+}
+.btn:hover{ transform: translateY(-1px); box-shadow: 0 14px 24px rgba(0,0,0,.26); border-color: rgba(255,255,255,.28); }
+.btn:active{ transform: translateY(1px) scale(.99); }
+.btn:focus{ outline:none; box-shadow: var(--shadow2), var(--focus); }
+.btn-primary{ --btn-bg: linear-gradient(135deg, rgba(255,79,216,.92), rgba(124,92,255,.95)); --btn-stroke: rgba(255,255,255,.18); }
+.btn-ghost{ --btn-bg: rgba(10,14,28,.25); --btn-stroke: rgba(255,255,255,.18); }
+.btn-like{ --btn-bg: linear-gradient(135deg, rgba(45,226,230,.9), rgba(167,255,79,.85)); color: rgba(10,14,28,.95); }
+.btn-dislike{ --btn-bg: linear-gradient(135deg, rgba(255,90,120,.9), rgba(255,79,216,.85)); }
+.card{ border-radius: var(--radius-xl); background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06)); border: 1px solid rgba(255,255,255,.14); box-shadow: var(--shadow2); overflow:hidden; }
+.card-pad{ padding: var(--space-4); }
+.badge{ display:inline-flex; align-items:center; gap:.45rem; padding:.35rem .6rem; border-radius:999px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); font-weight:700; font-size:.82rem; }

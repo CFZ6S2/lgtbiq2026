@@ -458,14 +458,40 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (req.method === 'GET' && (parsed.pathname === '/landing' || parsed.pathname === '/register' || parsed.pathname === '/profile' || parsed.pathname === '/discover')) {
+  if (req.method === 'GET' && (parsed.pathname === '/landing' || parsed.pathname === '/register' || parsed.pathname === '/profile' || parsed.pathname === '/discover' || parsed.pathname === '/react-demo')) {
     try {
-      const html = fs.readFileSync(path.join(webRoot, 'index.html'), 'utf-8')
+      const file = parsed.pathname === '/react-demo' ? 'react-demo.html' : 'index.html'
+      const html = fs.readFileSync(path.join(webRoot, file), 'utf-8')
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(html)
     } catch (err) {
       res.writeHead(500)
       res.end('Error')
+    }
+    return
+  }
+  if (req.method === 'GET' && parsed.pathname === '/react') {
+    try {
+      const html = fs.readFileSync(path.join(path.resolve(__dirname, '..'), 'frontend', 'dist', 'index.html'), 'utf-8')
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.end(html)
+    } catch (err) {
+      res.writeHead(500)
+      res.end('Error')
+    }
+    return
+  }
+  if (req.method === 'GET' && parsed.pathname.startsWith('/react/')) {
+    try {
+      const rel = parsed.pathname.replace('/react/', '')
+      const filePath = path.join(path.resolve(__dirname, '..'), 'frontend', 'dist', rel)
+      const ext = path.extname(filePath).toLowerCase()
+      const ct = ext === '.js' ? 'application/javascript' : (ext === '.css' ? 'text/css' : 'application/octet-stream')
+      const buf = fs.readFileSync(filePath)
+      res.writeHead(200, { 'Content-Type': ct })
+      res.end(buf)
+    } catch {
+      res.writeHead(404); res.end('Not found')
     }
     return
   }
