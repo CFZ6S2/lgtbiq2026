@@ -10,10 +10,11 @@
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
+    "firebase": "^10.7.1",
     "lucide-react": "^0.466.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "firebase": "^10.7.1"
+    "react-router-dom": "^6.30.3"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

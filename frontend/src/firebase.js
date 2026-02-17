@@ -21,21 +21,24 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// Re-export db for easier imports
+export { db as database };
+
 // Firebase API helper functions
 export const firebaseAPI = {
   // Authentication
   async signInWithTelegram(initData) {
     try {
-      const response = await fetch('https://us-central1-lgtbiq26.cloudfunctions.net/api/auth/telegram', {
+      const response = await fetch('/api/auth/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
       });
       
       const data = await response.json();
-      if (data.ok && data.token) {
-        await signInWithCustomToken(auth, data.token);
-        return { success: true };
+      if (response.ok && data.firebaseCustomToken) {
+        await signInWithCustomToken(auth, data.firebaseCustomToken);
+        return { success: true, jwt: data.token, user: data.user };
       }
       return { success: false, error: data.error };
     } catch (error) {
