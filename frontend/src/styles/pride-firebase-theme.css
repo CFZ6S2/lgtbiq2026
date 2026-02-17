@@ -1,0 +1,637 @@
+/* 🌈 Pride + Firebase Dark Theme 2026
+   Variables CSS personalizadas para una experiencia visual inclusiva y moderna */
+
+:root {
+  /* Fondo oscuro Firebase (no negro puro) */
+  --firebase-dark: #121212;        /* Cod Gray - mejor que negro puro */
+  --firebase-darker: #0a0a0a;
+  --firebase-card: rgba(30, 30, 40, 0.7);
+  --firebase-elevated: rgba(40, 40, 50, 0.8);
+  
+  /* Colores Pride desaturados para dark mode */
+  --pride-red-dark: hsl(0deg, 76%, 48%);      /* -20% saturación */
+  --pride-orange-dark: hsl(25deg, 80%, 45%);
+  --pride-yellow-dark: hsl(48deg, 80%, 45%);
+  --pride-green-dark: hsl(130deg, 80%, 35%);
+  --pride-blue-dark: hsl(210deg, 80%, 45%);
+  --pride-purple-dark: hsl(260deg, 80%, 50%);
+  
+  /* Trans colors desaturados */
+  --trans-blue-dark: hsl(194deg, 72%, 58%);
+  --trans-pink-dark: hsl(349deg, 70%, 68%);
+  
+  /* Pan colors desaturados */
+  --pan-pink-dark: hsl(329deg, 80%, 50%);
+  --pan-yellow-dark: hsl(48deg, 80%, 50%);
+  --pan-cyan-dark: hsl(198deg, 80%, 50%);
+  
+  /* Texto optimizado para dark mode */
+  --text-primary: #e8e8e8;         /* No blanco puro */
+  --text-secondary: rgba(232, 232, 232, 0.7);
+  --text-muted: rgba(232, 232, 232, 0.5);
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  
+  /* Sombras y elevación */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-pride: 0 4px 20px rgba(255, 255, 255, 0.1);
+  
+  /* Transiciones suaves */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Colores adicionales para estados */
+  --success: hsl(130deg, 80%, 45%);
+  --warning: hsl(48deg, 80%, 45%);
+  --error: hsl(0deg, 76%, 48%);
+  --info: hsl(210deg, 80%, 45%);
+  
+  /* Gradientes Pride */
+  --gradient-pride: linear-gradient(135deg, 
+    var(--pride-red-dark), var(--pride-orange-dark), var(--pride-yellow-dark), 
+    var(--pride-green-dark), var(--pride-blue-dark), var(--pride-purple-dark));
+  
+  --gradient-trans: linear-gradient(135deg, var(--trans-blue-dark), var(--trans-pink-dark));
+  --gradient-pan: linear-gradient(135deg, var(--pan-pink-dark), var(--pan-yellow-dark), var(--pan-cyan-dark));
+}
+
+/* 🎨 Estilos base del tema */
+.pride-firebase-theme {
+  background: var(--firebase-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Gradiente Pride de fondo muy sutil */
+.pride-firebase-theme::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    var(--pride-red-dark) 0%,
+    var(--pride-orange-dark) 15%,
+    var(--pride-yellow-dark) 30%,
+    var(--pride-green-dark) 45%,
+    var(--pride-blue-dark) 65%,
+    var(--pride-purple-dark) 85%,
+    var(--trans-pink-dark) 100%
+  );
+  opacity: 0.08;  /* Muy sutil para no cansar la vista */
+  z-index: -1;
+  background-size: 400% 400%;
+  animation: subtle-pride-shift 20s ease infinite;
+}
+
+@keyframes subtle-pride-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Patrón de puntos Firebase opcional */
+.pride-firebase-theme::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 🃏 Cards Glassmorphism con Bordes Pride */
+.firebase-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fallback para Firefox */
+@-moz-document url-prefix() {
+  .firebase-card {
+    background: rgba(30, 30, 40, 0.95);
+  }
+}
+
+/* Borde superior Pride animado */
+.firebase-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--pride-red-dark),
+    var(--pride-orange-dark),
+    var(--pride-yellow-dark),
+    var(--pride-green-dark),
+    var(--pride-blue-dark),
+    var(--pride-purple-dark)
+  );
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
+}
+
+.firebase-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-lg), var(--shadow-pride);
+  background: var(--glass-hover);
+}
+
+.firebase-card:hover::before {
+  opacity: 1;
+}
+
+/* 🎯 Botones Firebase + Pride */
+.btn-firebase-pride {
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Efecto de hover con gradiente Pride */
+.btn-firebase-pride::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--pride-red-dark),
+    var(--pride-orange-dark),
+    var(--pride-yellow-dark),
+    var(--pride-green-dark),
+    var(--pride-blue-dark),
+    var(--pride-purple-dark)
+  );
+  transition: left var(--transition-slow);
+  z-index: -1;
+  opacity: 0.3;
+}
+
+.btn-firebase-pride:hover::before {
+  left: 0;
+}
+
+.btn-firebase-pride:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), var(--shadow-pride);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-firebase-pride:active {
+  transform: translateY(0);
+}
+
+/* Botón principal con gradiente Pride */
+.btn-primary-pride {
+  background: linear-gradient(
+    135deg,
+    var(--pride-purple-dark),
+    var(--pride-blue-dark),
+    var(--trans-blue-dark)
+  );
+  background-size: 200% 200%;
+  border: none;
+  color: white;
+  font-weight: 600;
+  animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.btn-primary-pride:hover {
+  box-shadow: 0 8px 24px rgba(91, 206, 250, 0.3);
+}
+
+/* 📝 Inputs Firebase Style con Acentos Pride */
+.firebase-input {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: var(--transition-smooth);
+  box-shadow: var(--shadow-sm);
+}
+
+.firebase-input:focus {
+  outline: none;
+  border-color: var(--trans-blue-dark);
+  background: var(--glass-hover);
+  box-shadow: 0 0 0 3px rgba(91, 206, 250, 0.15),
+              var(--shadow-sm);
+}
+
+.firebase-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Focus con diferentes colores Pride según tipo */
+.firebase-input[type="email"]:focus {
+  border-color: var(--pan-pink-dark);
+  box-shadow: 0 0 0 3px rgba(255, 33, 140, 0.15), var(--shadow-sm);
+}
+
+.firebase-input[type="password"]:focus {
+  border-color: var(--pride-purple-dark);
+  box-shadow: 0 0 0 3px rgba(260, 80%, 50%, 0.15), var(--shadow-sm);
+}
+
+/* 🏳️‍🌈 Header Firebase con Branding Pride */
+.firebase-header {
+  text-align: center;
+  padding: 3rem 1rem;
+  position: relative;
+  margin-bottom: 3rem;
+}
+
+.firebase-logo-text {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.03em;
+  position: relative;
+  display: inline-block;
+}
+
+/* Texto con gradiente Pride desaturado */
+.firebase-logo-text .pride-gradient {
+  background: linear-gradient(
+    120deg,
+    var(--trans-blue-dark),
+    var(--trans-pink-dark),
+    var(--pan-pink-dark),
+    var(--pride-purple-dark),
+    var(--pride-blue-dark)
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-text-slide 10s linear infinite;
+}
+
+@keyframes rainbow-text-slide {
+  to { background-position: 200% center; }
+}
+
+/* Brillo sutil debajo del texto */
+.firebase-logo-text::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--trans-blue-dark),
+    var(--trans-pink-dark),
+    transparent
+  );
+  opacity: 0.5;
+}
+
+/* 🧭 Navegación Firebase + Pride */
+.firebase-nav {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: var(--trans-blue-dark);
+  transition: width var(--transition-smooth);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: var(--glass-hover);
+}
+
+.nav-link:hover::before {
+  width: 80%;
+}
+
+.nav-link.active {
+  color: var(--trans-blue-dark);
+  background: rgba(91, 206, 250, 0.1);
+}
+
+/* 📊 Tabla Responsive Firebase */
+.firebase-table {
+  width: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.firebase-table thead {
+  background: var(--firebase-elevated);
+  border-bottom: 2px solid var(--trans-blue-dark);
+}
+
+.firebase-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.firebase-table td {
+  padding: 1rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.firebase-table tr:hover {
+  background: var(--glass-hover);
+}
+
+/* 🏷️ Badges Pride con Glassmorphism */
+.badge-pride {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-pride.trans {
+  border-color: var(--trans-blue-dark);
+  color: var(--trans-blue-dark);
+  box-shadow: 0 0 12px rgba(91, 206, 250, 0.2);
+}
+
+.badge-pride.pan {
+  border-color: var(--pan-pink-dark);
+  color: var(--pan-pink-dark);
+  box-shadow: 0 0 12px rgba(255, 33, 140, 0.2);
+}
+
+.badge-pride.rainbow {
+  background: linear-gradient(
+    90deg,
+    var(--pride-red-dark),
+    var(--pride-purple-dark)
+  );
+  border: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 🎨 Utilidades de gradientes */
+.gradient-pride {
+  background: var(--gradient-pride);
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.gradient-trans {
+  background: var(--gradient-trans);
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.gradient-pan {
+  background: var(--gradient-pan);
+  background-size: 200% 200%;
+  animation: gradient-shift 7s ease infinite;
+}
+
+/* 🌟 Animaciones adicionales */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(255, 255, 255, 0.2); }
+}
+
+/* ✨ Utilidades de animación */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* 🎯 Utilidades de espaciado personalizadas */
+.space-y-pride > * + * {
+  margin-top: 1.5rem;
+}
+
+.space-x-pride > * + * {
+  margin-left: 1.5rem;
+}
+
+/* 🌈 Utilidades de texto con gradiente */
+.text-gradient-pride {
+  background: var(--gradient-pride);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: rainbow-text-slide 10s linear infinite;
+}
+
+.text-gradient-trans {
+  background: var(--gradient-trans);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: rainbow-text-slide 8s linear infinite;
+}
+
+.text-gradient-pan {
+  background: var(--gradient-pan);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: rainbow-text-slide 12s linear infinite;
+}
+
+/* 📱 Responsive design */
+@media (max-width: 768px) {
+  .firebase-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .btn-firebase-pride {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .firebase-header {
+    padding: 2rem 1rem;
+  }
+  
+  .firebase-logo-text {
+    font-size: clamp(2rem, 8vw, 3.5rem);
+  }
+}
+
+/* 🌙 Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .pride-firebase-theme {
+    color-scheme: dark;
+  }
+}
+
+/* ♿ Accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Enfoque accesible */
+.btn-firebase-pride:focus-visible,
+.firebase-input:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--trans-blue-dark);
+  outline-offset: 2px;
+}
+
+/* 🎨 Clases de utilidad adicionales */
+.backdrop-blur-firebase {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+.border-pride {
+  border-image: linear-gradient(
+    90deg,
+    var(--pride-red-dark),
+    var(--pride-orange-dark),
+    var(--pride-yellow-dark),
+    var(--pride-green-dark),
+    var(--pride-blue-dark),
+    var(--pride-purple-dark)
+  ) 1;
+}
+
+.shadow-pride-glow {
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.1), var(--shadow-pride);
+}
+
+/* 🎯 Estados de componentes */
+.is-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(50%);
+}
+
+.is-success {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 3px rgba(130, 80%, 45%, 0.15);
+}
+
+.is-error {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px rgba(0, 76%, 48%, 0.15);
+}
+
+.is-warning {
+  border-color: var(--warning) !important;
+  box-shadow: 0 0 0 3px rgba(48, 80%, 45%, 0.15);
+}
