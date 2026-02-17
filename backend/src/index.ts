@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 import { config } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { validateTelegramAuth } from './middleware/auth';
+import { rateLimiterMiddleware } from './middleware/rateLimit';
 
 // Importar rutas
 import { authRoutes } from './routes/auth';
@@ -37,16 +37,8 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // límite de 100 requests por ventana
-  message: 'Demasiadas solicitudes desde esta IP, por favor intenta más tarde',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/', limiter);
+// Rate limiting (Upstash si está disponible, fallback local)
+app.use('/api/', rateLimiterMiddleware);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
