@@ -24,17 +24,18 @@ router.post('/messages',
   validateRequest(sendMessageSchema),
   asyncHandler(async (req: any, res: any) => {
     const { receiverId, content, type } = req.body;
-    const senderId = req.user.telegramId;
+    const senderId = `tg:${req.user.telegramId}`;
+    const normalizedReceiverId = receiverId.startsWith('tg:') ? receiverId : `tg:${receiverId}`;
 
     // Verificar que el receptor existe
-    const receiverRef = db.collection('users').doc(receiverId);
+    const receiverRef = db.collection('users').doc(normalizedReceiverId);
     const receiverDoc = await receiverRef.get();
     
     if (!receiverDoc.exists) {
       return res.status(404).json({ error: 'Usuario receptor no encontrado' });
     }
 
-    const saved = await chatSvc.sendMessage(senderId, receiverId, content, type);
+    const saved = await chatSvc.sendMessage(senderId, normalizedReceiverId, content, type);
 
     res.json({ 
       message: 'Mensaje enviado exitosamente',
@@ -49,16 +50,17 @@ router.get('/messages',
   validateRequest(getMessagesSchema),
   asyncHandler(async (req: any, res: any) => {
     const { otherUserId, limit: messageLimit } = req.query;
-    const currentUserId = req.user.telegramId;
+    const currentUserId = `tg:${req.user.telegramId}`;
+    const normalizedOtherId = String(otherUserId).startsWith('tg:') ? String(otherUserId) : `tg:${otherUserId}`;
 
-    const messages = await chatSvc.getMessages(currentUserId, otherUserId, parseInt(messageLimit));
+    const messages = await chatSvc.getMessages(currentUserId, normalizedOtherId, parseInt(messageLimit));
 
     // Marcar mensajes como leídos
     // (Esto se haría en el frontend o en una llamada separada)
 
     res.json({ 
       messages,
-      chatId: [currentUserId, otherUserId].sort().join('_') 
+      chatId: [currentUserId, normalizedOtherId].sort().join('_') 
     });
   })
 );
@@ -66,7 +68,7 @@ router.get('/messages',
 // Obtener lista de chats del usuario
 router.get('/conversations',
   asyncHandler(async (req: any, res: any) => {
-    const currentUserId = req.user.telegramId;
+    const currentUserId = `tg:${req.user.telegramId}`;
 
     const conversations = await chatSvc.getConversations(currentUserId);
 

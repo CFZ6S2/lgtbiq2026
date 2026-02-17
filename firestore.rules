@@ -11,6 +11,11 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    // Chat helpers
+    function isParticipant(chatData) {
+      return request.auth != null && request.auth.uid in chatData.participants;
+    }
+    
     function isProfileVisible(userId) {
       return get(/databases/$(database)/documents/privacySettings/$(userId)).data.profileVisible != false;
     }
@@ -115,32 +120,37 @@ service cloud.firestore {
       allow write: if false; // Only admins can modify orientations
     }
 
-    // Chats collection - new chat system
+    // Chats collection - new chat system (modo estricto)
     match /chats/{chatId} {
-      allow read: if isAuthenticated() && 
-        request.auth.uid in resource.data.participants;
-      allow create: if false; // Chats created by cloud functions
-      allow update: if isAuthenticated() && 
-        request.auth.uid in resource.data.participants &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['lastMessage', 'lastMessageTimestamp', 'lastMessageSenderId']);
+      // Solo participantes pueden leer
+      allow read: if isParticipant(resource.data);
+      
+      // Creación de chats: preferiblemente desde backend (Admin SDK)
+      allow create: if false;
+      
+      // Actualización: impedir cambios a 'participants'
+      allow update: if isParticipant(resource.data) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants']));
       allow delete: if false;
     }
 
-    // Messages subcollection
+    // Messages subcollection (modo estricto)
     match /chats/{chatId}/messages/{messageId} {
-      allow read: if isAuthenticated() && 
-        (request.auth.uid == resource.data.senderId || 
-         request.auth.uid == resource.data.recipientId);
-      allow create: if isAuthenticated() && 
+      function getChatData() {
+        return get(/databases/$(database)/documents/chats/$(chatId)).data;
+      }
+      
+      // Solo participantes del chat pueden leer mensajes
+      allow read: if isParticipant(getChatData());
+      
+      // Crear mensaje: debe ser el emisor y pertenecer al chat
+      allow create: if isAuthenticated() &&
+        isParticipant(getChatData()) &&
         request.resource.data.senderId == request.auth.uid &&
-        request.resource.data.senderId != request.resource.data.recipientId &&
-        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
-      allow update: if isAuthenticated() && 
-        (request.auth.uid == resource.data.recipientId && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
-      allow delete: if isAuthenticated() && 
-        request.auth.uid == resource.data.senderId;
+        request.resource.data.senderId != request.resource.data.recipientId;
+      
+      // Historial inmutable (no editar ni borrar mensajes)
+      allow update, delete: if false;
     }
   }
 }
