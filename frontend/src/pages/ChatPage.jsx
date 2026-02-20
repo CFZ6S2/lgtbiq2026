@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, Circle, MessageCircle } from 'lucide-react';
 import { chatService } from '../services/chatService';
 import { auth } from '../firebase';

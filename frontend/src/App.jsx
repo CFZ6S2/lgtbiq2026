@@ -1,10 +1,10 @@
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-
-// Páginas
 import LandingPage from './pages/LandingPage';
 import RegisterPage from './pages/RegisterPage';
 import MainAppPage from './pages/MainAppPage';
+import PrideHomePage from './components/PrideHomePage';
 
 function App() {
   // Configurar Telegram WebApp si está disponible
@@ -18,14 +18,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas públicas */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<PrideHomePage />} />
         <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Rutas de la aplicación principal */}
+        <Route path="/theme-demo" element={<PrideHomePage />} />
         <Route path="/app/*" element={<MainAppPage />} />
-        
-        {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Users, MapPin, MessageCircle, Shield, Send } from 'lucide-react';
 import { firebaseAPI } from '../firebase';

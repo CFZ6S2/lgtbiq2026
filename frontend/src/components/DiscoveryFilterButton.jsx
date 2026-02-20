@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import DiscoveryFilters from './DiscoveryFilters';
+import React, { useState } from 'react';
+import DiscoveryFilters from './DiscoveryFiltersThemed';
 
 // Componente de botón flotante para filtros de descubrimiento
 export default function DiscoveryFilterButton({ onFiltersUpdated }) {
@@ -13,10 +13,10 @@ export default function DiscoveryFilterButton({ onFiltersUpdated }) {
 
   return (
     <>
-      {/* Botón flotante */}
+      {/* Botón flotante con tema Pride */}
       <button
         onClick={() => setShowFilters(true)}
-        className="fixed bottom-20 right-4 z-50 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+        className="fixed bottom-20 right-4 z-50 btn-primary-pride p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
         title="Ajustar filtros de búsqueda"
       >
         <svg 
@@ -34,9 +34,9 @@ export default function DiscoveryFilterButton({ onFiltersUpdated }) {
         </svg>
       </button>
 
-      {/* Modal de filtros */}
+      {/* Modal de filtros con tema Pride */}
       {showFilters && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
           <div className="relative w-full max-w-md">
             <DiscoveryFilters
               onClose={() => setShowFilters(false)}

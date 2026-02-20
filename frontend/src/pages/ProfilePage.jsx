@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Camera, MapPin, Heart, Mail, Calendar, User, Settings } from 'lucide-react';
 
 export default function ProfilePage({ user }) {

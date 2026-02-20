@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 // Componente para reportar usuarios con lógica de seguridad mejorada
 export default function UserReportButton({ userId, userName, className = "" }) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/pride-firebase-theme.css';
 
 // Componente de Filtros de Descubrimiento con tema Pride + Firebase Dark Theme
