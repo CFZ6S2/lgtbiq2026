@@ -67,6 +67,9 @@ export default function ThemeLoader({ children }) {
         document.head.appendChild(style);
       }
       
+      if (typeof document !== 'undefined') {
+        document.body.classList.add('pride-firebase-theme');
+      }
       setThemeLoaded(true);
     };
 
