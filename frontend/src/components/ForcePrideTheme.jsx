@@ -30,7 +30,7 @@ export default function ForcePrideTheme() {
         hsl(260deg, 80%, 50%) 85%,
         hsl(349deg, 70%, 68%) 100%
       );
-      opacity: 0.08;
+      opacity: 0.22;
       z-index: -1;
       background-size: 400% 400%;
       animation: subtle-pride-shift 20s ease infinite;

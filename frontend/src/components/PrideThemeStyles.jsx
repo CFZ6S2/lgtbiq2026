@@ -64,7 +64,7 @@ const prideThemeStyles = `
       var(--pride-purple-dark) 85%,
       var(--trans-pink-dark) 100%
     );
-    opacity: 0.08;
+    opacity: 0.22;
     z-index: -1;
     background-size: 400% 400%;
     animation: subtle-pride-shift 20s ease infinite;
@@ -204,6 +204,66 @@ const prideThemeStyles = `
     border: none !important;
     color: white !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .pride-firebase-theme .landing-container {
+    background: var(--firebase-dark) !important;
+    color: var(--text-primary) !important;
+  }
+  .pride-firebase-theme .landing-header {
+    background: var(--glass-bg) !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+  .pride-firebase-theme .landing-hero {
+    background: var(--firebase-elevated) !important;
+  }
+  .pride-firebase-theme .landing-title {
+    -webkit-text-fill-color: transparent !important;
+  }
+  .pride-firebase-theme .landing-card {
+    background: var(--glass-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+  .pride-firebase-theme .landing-feature-card {
+    background: var(--firebase-card) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+  .pride-firebase-theme .landing-cta {
+    color: #fff !important;
+  }
+  .pride-firebase-theme .register-container {
+    background: var(--firebase-dark) !important;
+  }
+  .pride-firebase-theme .register-card {
+    background: var(--firebase-elevated) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+  .pride-firebase-theme .register-input {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-primary) !important;
+  }
+  .pride-firebase-theme .register-button-primary {
+    color: #fff !important;
+  }
+  .pride-firebase-theme .register-button-secondary {
+    background: var(--glass-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--glass-border) !important;
+  }
+  .pride-firebase-theme .register-role-button {
+    background: var(--firebase-card) !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--glass-border) !important;
+  }
+  .pride-firebase-theme .privacy-notice {
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-primary) !important;
   }
 `;
 

@@ -30,10 +30,25 @@ const MainApp = () => {
     setCurrentView('app');
   };
 
-  const handleAuthClick = (method) => {
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  const handleAuthClick = async (method) => {
     if (method === 'telegram') {
-      // Implementar autenticación con Telegram
-      console.log('Autenticación con Telegram');
+      if (isAuthenticating) return;
+      setIsAuthenticating(true);
+      try {
+        const initData = window.Telegram?.WebApp?.initData || 'demo_init_data';
+        const result = await firebaseAPI.signInWithTelegram(initData);
+        if (result?.success) {
+          setCurrentView('app');
+        } else {
+          setCurrentView('register');
+        }
+      } catch {
+        setCurrentView('register');
+      } finally {
+        setIsAuthenticating(false);
+      }
     } else if (method === 'email') {
       setCurrentView('register');
     }

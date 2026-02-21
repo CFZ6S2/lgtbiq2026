@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { z } from 'zod';
 import * as geofire from 'geofire-common';
+import { validateInitData, validateInitDataDemo } from './validateInitData';
 
 // const db = admin.firestore();
 
@@ -338,4 +339,43 @@ export const handleOrientations = async (req: functions.Request, res: functions.
 export const handleStats = async (req: functions.Request, res: functions.Response, db: admin.firestore.Firestore) => {
   // Implementation for stats
   sendJSON(res, 200, { ok: true, stats: {} });
+};
+
+export const handleTelegramAuth = async (req: functions.Request, res: functions.Response, db: admin.firestore.Firestore) => {
+  try {
+    const { initData } = req.body || {};
+    if (!initData) return sendJSON(res, 400, { success: false, error: 'Missing initData' });
+    const cfg = functions.config().telegram || {};
+    const botToken = process.env.BOT_TOKEN || (cfg as any).bot_token || '';
+    const allowDemo = (process.env.ALLOW_DEMO === 'true') || ((cfg as any).allow_demo === 'true');
+    const result = (allowDemo && initData === 'demo_init_data') ? validateInitDataDemo(initData) : (botToken ? validateInitData(initData, botToken) : validateInitDataDemo(initData));
+    if (!result.valid || !result.user) return sendJSON(res, 401, { success: false, error: result.error || 'Invalid initData' });
+    const uid = String(result.user.id);
+    let token = await admin.auth().createCustomToken(uid);
+    try {
+      const userRef = db.collection('users').doc(uid);
+      const existing = await userRef.get();
+      if (!existing.exists) {
+        await userRef.set({
+          telegramId: uid,
+          displayName: result.user.first_name,
+          username: result.user.username || null,
+          language: result.user.language_code || 'es',
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        await db.collection('privacySettings').doc(uid).set({
+          userId: uid,
+          incognito: false,
+          hideDistance: false,
+          profileVisible: true,
+          mapConsent: false,
+          mapConsentAt: null
+        }, { merge: true });
+      }
+    } catch {}
+    sendJSON(res, 200, { success: true, firebaseCustomToken: token, user: { id: uid, username: result.user.username, first_name: result.user.first_name } });
+  } catch (error) {
+    console.error('Telegram auth error:', error);
+    sendJSON(res, 500, { success: false, error: 'Internal server error' });
+  }
 };

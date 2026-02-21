@@ -3,14 +3,14 @@ import { getAuth, signInWithCustomToken, onAuthStateChanged } from 'firebase/aut
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// Your Firebase configuration - replace with your actual config
+// Firebase configuration (use environment variables if available)
 const firebaseConfig = {
-  apiKey: "AIzaSyBkLQS6yOarEu2nNsUT0TX0oF_oKfORcVc",
-  authDomain: "lgtbiq26.firebaseapp.com",
-  projectId: "lgtbiq26",
-  storageBucket: "lgtbiq26.firebasestorage.app",
-  messagingSenderId: "564400637541",
-  appId: "1:564400637541:web:721bb308aac64117a4a88c"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBkLQS6yOarEu2nNsUT0TX0oF_oKfORcVc",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "lgtbiq26.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "lgtbiq26",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "lgtbiq26.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_SENDER_ID || "564400637541",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:564400637541:web:721bb308aac64117a4a88c"
 };
 
 // Initialize Firebase

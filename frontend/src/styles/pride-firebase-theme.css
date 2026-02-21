@@ -63,7 +63,10 @@
 
 /* 🎨 Estilos base del tema */
 .pride-firebase-theme {
-  background: var(--firebase-dark);
+  background: var(--gradient-pride), var(--firebase-dark);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 400% 400%, cover;
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.6;
@@ -89,7 +92,7 @@
     var(--pride-purple-dark) 85%,
     var(--trans-pink-dark) 100%
   );
-  opacity: 0.08;  /* Muy sutil para no cansar la vista */
+  opacity: 0.22;
   z-index: -1;
   background-size: 400% 400%;
   animation: subtle-pride-shift 20s ease infinite;
@@ -638,7 +641,9 @@
 
 /* Overrides para Landing/Register bajo tema Pride */
 .pride-firebase-theme .landing-container {
-  background: var(--firebase-dark) !important;
+  background: var(--gradient-pride), var(--firebase-dark) !important;
+  background-size: 300% 300%, cover !important;
+  background-attachment: fixed !important;
   color: var(--text-primary) !important;
 }
 .pride-firebase-theme .landing-header {
@@ -650,6 +655,9 @@
   background: var(--firebase-elevated) !important;
 }
 .pride-firebase-theme .landing-title {
+  background: var(--gradient-pride) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
 }
 .pride-firebase-theme .landing-card {

@@ -29,29 +29,34 @@ export default function MainAppPage() {
   };
 
   if (!currentUser) {
-    return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+    return <div className="flex items-center justify-center h-screen pride-firebase-theme text-white">Cargando...</div>;
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex pride-firebase-theme overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        <div className="p-4 border-b">
+      <div className="w-64 firebase-card !rounded-none !m-0 !h-full !border-r !border-white/10 flex flex-col">
+        <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center gradient-pride p-[2px]">
+              <div className="w-full h-full bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
+                <User className="w-6 h-6 text-white" />
+              </div>
             </div>
             <div>
-              <p className="font-semibold text-gray-800">{currentUser.name}</p>
-              <p className="text-sm text-gray-500">En línea</p>
+              <p className="font-semibold text-white">{currentUser.name}</p>
+              <p className="text-sm text-green-400 flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                En línea
+              </p>
             </div>
           </div>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <Link
             to="/app"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors text-gray-700 hover:text-purple-600"
+            className="nav-link flex items-center gap-3"
           >
             <Heart className="w-5 h-5" />
             <span>Descubrir</span>
@@ -59,7 +64,7 @@ export default function MainAppPage() {
 
           <Link
             to="/app/chat"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors text-gray-700 hover:text-purple-600"
+            className="nav-link flex items-center gap-3"
           >
             <MessageCircle className="w-5 h-5" />
             <span>Mensajes</span>
@@ -67,7 +72,7 @@ export default function MainAppPage() {
 
           <Link
             to="/app/map"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors text-gray-700 hover:text-purple-600"
+            className="nav-link flex items-center gap-3"
           >
             <MapPin className="w-5 h-5" />
             <span>Mapa</span>
@@ -75,34 +80,34 @@ export default function MainAppPage() {
 
           <Link
             to="/app/profile"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors text-gray-700 hover:text-purple-600"
+            className="nav-link flex items-center gap-3"
           >
             <User className="w-5 h-5" />
             <span>Mi Perfil</span>
           </Link>
-
-          <div className="pt-4 border-t">
-            <Link
-              to="/app/settings"
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors text-gray-600 hover:text-gray-800"
-            >
-              <Settings className="w-5 h-5" />
-              <span>Configuración</span>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 transition-colors text-gray-600 hover:text-red-600 w-full"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Cerrar Sesión</span>
-            </button>
-          </div>
         </nav>
+
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <Link
+            to="/app/settings"
+            className="nav-link flex items-center gap-3"
+          >
+            <Settings className="w-5 h-5" />
+            <span>Configuración</span>
+          </Link>
+
+          <button
+            onClick={handleLogout}
+            className="nav-link flex items-center gap-3 w-full hover:!bg-red-500/20 hover:!text-red-400"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <Routes>
           <Route path="/" element={<SwipePage />} />
           <Route path="/chat" element={<ChatPage />} />

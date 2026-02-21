@@ -21,7 +21,8 @@ import {
   handleModerationReports,
   handleModerationVerify,
   handleModerationBlock,
-  handleOrientations
+  handleOrientations,
+  handleTelegramAuth
 } from './api';
 
 admin.initializeApp();
@@ -50,88 +51,93 @@ const db = admin.firestore();
 
 // Main API function
 export const api = functions.https.onRequest(async (req, res) => {
-  const path = req.path;
+  const rawPath = req.path || '/';
+  const path = rawPath.replace(/^\/api(\/|$)/i, '/');
   const method = req.method;
   
   try {
     switch (true) {
       // Profile endpoints
-      case method === 'POST' && path === '/api/sendData':
+      case method === 'POST' && path === '/sendData':
         return handleProfileSubmission(req, res, db);
         
       // Discovery/Recommendations
-      case method === 'POST' && path === '/api/recs':
+      case method === 'POST' && path === '/recs':
         return handleRecommendations(req, res, db);
         
       // Matches
-      case method === 'POST' && path === '/api/matches':
+      case method === 'POST' && path === '/matches':
         return handleMatches(req, res, db);
         
       // Chat
-      case method === 'POST' && path === '/api/chat/history':
+      case method === 'POST' && path === '/chat/history':
         return handleChatHistory(req, res, db);
         
-      case method === 'POST' && path === '/api/chat/send':
+      case method === 'POST' && path === '/chat/send':
         return handleSendMessage(req, res, db);
         
-      case method === 'POST' && path === '/api/chat/mark-read':
+      case method === 'POST' && path === '/chat/mark-read':
         return handleMarkMessagesRead(req, res, db);
         
-      case method === 'POST' && path === '/api/chat/typing':
+      case method === 'POST' && path === '/chat/typing':
         return handleTypingIndicator(req, res, db);
         
       // Likes
-      case method === 'POST' && path === '/api/like':
+      case method === 'POST' && path === '/like':
         return handleLikeUser(req, res, db);
         
       // Blocks
-      case method === 'POST' && path === '/api/block':
+      case method === 'POST' && path === '/block':
         return handleBlockUser(req, res, db);
         
       // Reports
-      case method === 'POST' && path === '/api/report':
+      case method === 'POST' && path === '/report':
         return handleReportUser(req, res, db);
         
       // Map features
-      case method === 'GET' && path === '/api/map/nearby':
+      case method === 'GET' && path === '/map/nearby':
         return handleMapNearby(req, res, db);
         
-      case method === 'POST' && path === '/api/map/consent':
+      case method === 'POST' && path === '/map/consent':
         return handleMapConsent(req, res, db);
         
-      case method === 'POST' && path === '/api/map/location':
+      case method === 'POST' && path === '/map/location':
         return handleMapLocation(req, res, db);
         
       // Privacy
-      case method === 'POST' && path === '/api/privacy/incognito':
+      case method === 'POST' && path === '/privacy/incognito':
         return handlePrivacySettings(req, res, db);
         
       // User data
-      case method === 'POST' && path === '/api/me/export':
+      case method === 'POST' && path === '/me/export':
         return handleUserExport(req, res, db);
         
-      case method === 'POST' && path === '/api/me/delete':
+      case method === 'POST' && path === '/me/delete':
         return handleUserDelete(req, res, db);
         
       // Utilities
-      case method === 'GET' && path === '/api/orientations':
+      case method === 'GET' && path === '/orientations':
         return handleOrientations(req, res, db);
         
-      // Moderation (admin only)
+      // Auth
+      case method === 'GET' && path === '/mod/reports':
+        return handleTelegramAuth(req, res, db);
+        
+      case method === 'POST' && path === '/mod/verify':
       case method === 'GET' && path === '/api/mod/reports':
         return handleModerationReports(req, res, db);
-        
+      case method === 'POST' && path === '/mod/block-user':
       case method === 'POST' && path === '/api/mod/verify':
         return handleModerationVerify(req, res, db);
+      // Auth
+      case method === 'POST' && path === '/auth/telegram':
+        return handleTelegramAuth(req, res, db);
+        
         
       case method === 'POST' && path === '/api/mod/block-user':
         return handleModerationBlock(req, res, db);
         
       default:
-        res.status(404).json({ ok: false, error: 'Not found' });
-    }
-  } catch (error) {
-    console.error('API Error:', error);
     res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });
