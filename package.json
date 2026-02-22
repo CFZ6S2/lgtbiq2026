@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node bot/server.js",
     "test": "node tests/validateInitData.test.js && node tests/api.basic.test.js",
+    "test:unit": "node tests/validateInitData.test.js",
     "start:demo": "cross-env DEMO=true node bot/server.js",
     "test:validation:run": "cross-env NODE_ENV=test node tests/validation/chat.validation.test.js && node tests/validation/guards.validation.test.js && node tests/validation/me.validation.test.js && node tests/validation/report.validation.test.js && node tests/validation/mod.validation.test.js",
     "test:parity:remote": "cross-env NODE_ENV=test node tests/validation/guards.validation.test.js",
