@@ -26,16 +26,37 @@ const Register = ({ onBack, onSuccess }) => {
   };
 
   const handleTelegramAuth = async () => {
+    // Check if Telegram Widget script is loaded
+    if (!window.Telegram?.Login) {
+      alert('Telegram Widget is loading. Please try again in a moment.');
+      return;
+    }
+
     try {
-      // Llamar a la autenticación real de Telegram
-      const result = await firebaseAPI.signInWithTelegram('demo_init_data');
-      if (result.success) {
-        onSuccess();
-      } else {
-        alert('Error al autenticar con Telegram: ' + result.error);
-      }
+      console.log('[TelegramAuth] invoking Telegram widget...');
+      window.Telegram.Login.auth(
+        { bot_id: '8540644362', request_access: true },
+        async (data) => {
+          if (!data) {
+            console.log('User cancelled login or error occurred');
+            return;
+          }
+          
+          // Send widget data object directly; backend validates Telegram hash
+          console.log('[TelegramAuth] widget payload:', data);
+          const result = await firebaseAPI.signInWithTelegram(data);
+          console.log('[TelegramAuth] backend result:', result);
+          if (result.success) {
+            onSuccess();
+          } else {
+            alert('Error al autenticar con Telegram: ' + result.error);
+          }
+        }
+      );
     } catch (error) {
-      alert('Error: ' + error.message);
+      console.error('Telegram auth error:', error);
+      // Fallback to direct bot link if widget fails
+      window.location.href = 'https://t.me/PRISMA_APPBOT';
     }
   };
 

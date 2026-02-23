@@ -23,8 +23,12 @@ import {
   handleOrientations,
   handleTelegramAuth
 } from './api';
+import { telegramBot } from './bot';
 
-admin.initializeApp();
+// admin.initializeApp() is already called in bot.ts if needed, but we should ensure it's only called once
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
 const db = admin.firestore();
 
 // Enable CORS
@@ -184,3 +188,5 @@ export {
   apiHealthV2,
   apiUsersV2
 } from './api/index.js';
+
+export { telegramBot };

@@ -1,120 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, MapPin, User, Settings, LogOut } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useNavigate, Routes, Route, useLocation } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, firebaseAPI } from '../firebase';
+import { LayoutDashboard, LogOut, User, Settings } from 'lucide-react';
 
-// Componentes de la aplicación
-import SwipePage from './SwipePage';
-import ChatPage from './ChatPage';
-import MapPage from './MapPage';
+// Components
+import BottomNav from '../components/BottomNav';
+import DiscoveryPage from './DiscoveryPage';
 import ProfilePage from './ProfilePage';
+import MatchesPage from './MatchesPage';
+import ChatPage from './ChatPage';
 
-export default function MainAppPage() {
+// Placeholder Pages for now
+const MapPage = () => <div className="p-8 text-center text-gray-400">Mapa en construcción 🚧</div>;
+
+const MainAppPage = () => {
+  const [user, setUser] = useState(undefined);
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
-    // Obtener usuario del localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    } else {
-      // Si no hay usuario, redirigir a landing
-      navigate('/');
-    }
-  }, [navigate]);
+    const unsub = onAuthStateChanged(auth, u => setUser(u ?? null));
+    return () => unsub();
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    await firebaseAPI.signOut();
     navigate('/');
   };
 
-  if (!currentUser) {
-    return <div className="flex items-center justify-center h-screen pride-firebase-theme text-white">Cargando...</div>;
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-300">Cargando aplicación…</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <div className="h-screen flex pride-firebase-theme overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-64 firebase-card !rounded-none !m-0 !h-full !border-r !border-white/10 flex flex-col">
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center gradient-pride p-[2px]">
-              <div className="w-full h-full bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <User className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="font-semibold text-white">{currentUser.name}</p>
-              <p className="text-sm text-green-400 flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                En línea
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <Link
-            to="/app"
-            className="nav-link flex items-center gap-3"
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+        <div className="bg-gray-800 p-8 rounded-2xl text-center max-w-md w-full mx-4 shadow-xl border border-gray-700">
+          <h2 className="text-xl font-bold mb-2 text-red-400">Acceso Denegado</h2>
+          <p className="text-gray-300 mb-6">Necesitas iniciar sesión para ver el dashboard.</p>
+          <button 
+            onClick={() => navigate('/')} 
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-colors"
           >
-            <Heart className="w-5 h-5" />
-            <span>Descubrir</span>
-          </Link>
-
-          <Link
-            to="/app/chat"
-            className="nav-link flex items-center gap-3"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span>Mensajes</span>
-          </Link>
-
-          <Link
-            to="/app/map"
-            className="nav-link flex items-center gap-3"
-          >
-            <MapPin className="w-5 h-5" />
-            <span>Mapa</span>
-          </Link>
-
-          <Link
-            to="/app/profile"
-            className="nav-link flex items-center gap-3"
-          >
-            <User className="w-5 h-5" />
-            <span>Mi Perfil</span>
-          </Link>
-        </nav>
-
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <Link
-            to="/app/settings"
-            className="nav-link flex items-center gap-3"
-          >
-            <Settings className="w-5 h-5" />
-            <span>Configuración</span>
-          </Link>
-
-          <button
-            onClick={handleLogout}
-            className="nav-link flex items-center gap-3 w-full hover:!bg-red-500/20 hover:!text-red-400"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Cerrar Sesión</span>
+            Volver al Inicio
           </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Contenido principal */}
-      <div className="flex-1 overflow-hidden relative">
+  return (
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+      {/* Top Navbar */}
+      <nav className="bg-gray-800 border-b border-gray-700 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <div className="bg-purple-600 p-2 rounded-lg">
+            <LayoutDashboard size={20} className="text-white" />
+          </div>
+          <span className="font-bold text-lg hidden sm:block">Pride Connect</span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2 bg-gray-700 px-3 py-1.5 rounded-full">
+            <User size={16} className="text-gray-400" />
+            <span className="text-sm font-medium">{user.displayName || 'Usuario'}</span>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-red-400 transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-8 container mx-auto px-0 md:px-4 py-4">
         <Routes>
-          <Route path="/" element={<SwipePage />} />
-          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/" element={<DiscoveryPage />} />
           <Route path="/map" element={<MapPage />} />
-          <Route path="/profile" element={<ProfilePage user={currentUser} />} />
+          <Route path="/matches" element={<MatchesPage />} />
+          <Route path="/chat" element={<MatchesPage />} />
+          <Route path="/chat/:id" element={<ChatPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
+      </main>
+
+      {/* Bottom Navigation (Mobile) */}
+      <div className="md:hidden">
+        <BottomNav />
       </div>
     </div>
   );
-}
+};
+
+export default MainAppPage;

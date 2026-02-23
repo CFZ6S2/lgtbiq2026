@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { z } from 'zod';
+import crypto from 'crypto';
 import * as geofire from 'geofire-common';
 import { validateInitData, validateInitDataDemo } from './validateInitData';
 
@@ -343,26 +344,80 @@ export const handleStats = async (req: functions.Request, res: functions.Respons
 
 export const handleTelegramAuth = async (req: functions.Request, res: functions.Response, db: admin.firestore.Firestore) => {
   try {
-    const { initData } = req.body || {};
-    if (!initData) return sendJSON(res, 400, { success: false, error: 'Missing initData' });
+    const body: any = req.body || {};
+    const initData: any = body?.initData ?? null;
+    const isWidgetPayloadTopLevel = body && body.id && body.hash;
+    const isWidgetPayloadInInit = initData && typeof initData === 'object' && initData.id && initData.hash;
+
     const cfg = functions.config().telegram || {};
     const botToken = process.env.BOT_TOKEN || (cfg as any).bot_token || '';
     const allowDemo = (process.env.ALLOW_DEMO === 'true') || ((cfg as any).allow_demo === 'true');
-    const result = (allowDemo && initData === 'demo_init_data') ? validateInitDataDemo(initData) : (botToken ? validateInitData(initData, botToken) : validateInitDataDemo(initData));
-    if (!result.valid || !result.user) return sendJSON(res, 401, { success: false, error: result.error || 'Invalid initData' });
+
+    let result: any = null;
+
+    // Case 1: Telegram WebApp initData string (existing flow)
+    if (typeof initData === 'string') {
+      if (!initData) return sendJSON(res, 400, { success: false, error: 'Missing initData' });
+      result = (allowDemo && initData === 'demo_init_data')
+        ? validateInitDataDemo(initData)
+        : (botToken ? validateInitData(initData, botToken) : validateInitDataDemo(initData));
+      if (!result.valid || !result.user) return sendJSON(res, 401, { success: false, error: result.error || 'Invalid initData' });
+    } 
+    // Case 2: Telegram Login Widget payload (top-level or inside initData)
+    else if (isWidgetPayloadTopLevel || isWidgetPayloadInInit) {
+      const payload = isWidgetPayloadTopLevel ? body : initData;
+      if (!botToken) {
+        return sendJSON(res, 500, { success: false, error: 'Bot token not configured' });
+      }
+      const providedHash = String(payload.hash || '').toLowerCase();
+      const dataPairs: string[] = [];
+      for (const key of Object.keys(payload).filter(k => k !== 'hash').sort()) {
+        const value = payload[key];
+        if (value === undefined || value === null) continue;
+        dataPairs.push(`${key}=${String(value)}`);
+      }
+      const dataCheckString = dataPairs.join('\n');
+      const secretKey = crypto.createHash('sha256').update(botToken).digest();
+      const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+      if (hmac !== providedHash) {
+        return sendJSON(res, 401, { success: false, error: 'Invalid Telegram widget hash' });
+      }
+      // Optional: check auth_date freshness
+      const authDate = Number(payload.auth_date || 0);
+      if (authDate && Date.now() / 1000 - authDate > 86400) {
+        // older than 24h
+        return sendJSON(res, 401, { success: false, error: 'Telegram data expired' });
+      }
+      result = { valid: true, user: { id: String(payload.id), username: payload.username || null, first_name: payload.first_name || 'Usuario', photo_url: payload.photo_url || null } };
+    } else if (allowDemo) {
+      // Fallback demo
+      result = validateInitDataDemo('demo_init_data');
+    } else {
+      return sendJSON(res, 400, { success: false, error: 'Missing or invalid Telegram login payload' });
+    }
     const uid = String(result.user.id);
     let token = await admin.auth().createCustomToken(uid);
+
+    // Auto-create user if not exists
     try {
       const userRef = db.collection('users').doc(uid);
       const existing = await userRef.get();
+
       if (!existing.exists) {
+        // Create minimal user profile automatically
         await userRef.set({
           telegramId: uid,
           displayName: result.user.first_name,
           username: result.user.username || null,
           language: result.user.language_code || 'es',
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+          photoUrl: result.user.photo_url || null, // If available in payload
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'active', // Direct activation
+          authMethod: 'telegram_direct'
         }, { merge: true });
+
+        // Initialize default privacy settings
         await db.collection('privacySettings').doc(uid).set({
           userId: uid,
           incognito: false,
@@ -371,9 +426,33 @@ export const handleTelegramAuth = async (req: functions.Request, res: functions.
           mapConsent: false,
           mapConsentAt: null
         }, { merge: true });
+
+        // Initialize empty profile placeholder
+        await db.collection('profiles').doc(uid).set({
+          userId: uid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } else {
+        // Update last login
+        await userRef.update({
+          lastLogin: admin.firestore.FieldValue.serverTimestamp()
+        });
       }
-    } catch {}
-    sendJSON(res, 200, { success: true, firebaseCustomToken: token, user: { id: uid, username: result.user.username, first_name: result.user.first_name } });
+    } catch (err) {
+      console.error('Error auto-creating user:', err);
+      // Continue even if DB write fails, token is valid
+    }
+
+    sendJSON(res, 200, {
+      success: true,
+      firebaseCustomToken: token,
+      user: {
+        id: uid,
+        username: result.user.username,
+        first_name: result.user.first_name
+      },
+      isNewUser: false // Frontend should redirect to app directly
+    });
   } catch (error) {
     console.error('Telegram auth error:', error);
     sendJSON(res, 500, { success: false, error: 'Internal server error' });

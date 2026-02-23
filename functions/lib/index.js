@@ -22,98 +22,94 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiUsersV2 = exports.apiHealthV2 = exports.apiModerationV2 = exports.apiDiscoveryV2 = exports.apiLegacyV2 = exports.updateMessageStats = exports.updateStats = exports.createMatch = exports.api = void 0;
+exports.telegramBot = exports.apiUsersV2 = exports.apiHealthV2 = exports.apiModerationV2 = exports.apiDiscoveryV2 = exports.apiLegacyV2 = exports.updateMessageStats = exports.updateStats = exports.createMatch = exports.api = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
-// import cors from 'cors';
+const cors_1 = __importDefault(require("cors"));
 const api_1 = require("./api");
-admin.initializeApp();
+const bot_1 = require("./bot");
+Object.defineProperty(exports, "telegramBot", { enumerable: true, get: function () { return bot_1.telegramBot; } });
+// admin.initializeApp() is already called in bot.ts if needed, but we should ensure it's only called once
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
 const db = admin.firestore();
 // Enable CORS
-// const corsHandler = cors({ origin: true });
-// Helper to wrap functions with CORS
-// const withCors = (fn: functions.HttpsFunction) => {
-//   return functions.https.onRequest((req, res) => {
-//     corsHandler(req, res, () => fn(req, res));
-//   });
-// };
-// Authentication helper
-// const getAuthedUser = async (initData: string): Promise<any> => {
-//   if (!initData) return null;
-//   
-//   const validation = validateInitData(initData, process.env.BOT_TOKEN || '');
-//   if (!validation.valid || !validation.user) return null;
-//   
-//   const userDoc = await db.collection('users').doc(String(validation.user.id)).get();
-//   return userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
-// };
+const corsHandler = (0, cors_1.default)({ origin: true });
 // Main API function
-exports.api = functions.https.onRequest(async (req, res) => {
-    const path = req.path;
-    const method = req.method;
-    try {
-        switch (true) {
-            // Profile endpoints
-            case method === 'POST' && path === '/api/sendData':
-                return (0, api_1.handleProfileSubmission)(req, res, db);
-            // Discovery/Recommendations
-            case method === 'POST' && path === '/api/recs':
-                return (0, api_1.handleRecommendations)(req, res, db);
-            // Matches
-            case method === 'POST' && path === '/api/matches':
-                return (0, api_1.handleMatches)(req, res, db);
-            // Chat
-            case method === 'POST' && path === '/api/chat/history':
-                return (0, api_1.handleChatHistory)(req, res, db);
-            case method === 'POST' && path === '/api/chat/send':
-                return (0, api_1.handleSendMessage)(req, res, db);
-            case method === 'POST' && path === '/api/chat/mark-read':
-                return (0, api_1.handleMarkMessagesRead)(req, res, db);
-            case method === 'POST' && path === '/api/chat/typing':
-                return (0, api_1.handleTypingIndicator)(req, res, db);
-            // Likes
-            case method === 'POST' && path === '/api/like':
-                return (0, api_1.handleLikeUser)(req, res, db);
-            // Blocks
-            case method === 'POST' && path === '/api/block':
-                return (0, api_1.handleBlockUser)(req, res, db);
-            // Reports
-            case method === 'POST' && path === '/api/report':
-                return (0, api_1.handleReportUser)(req, res, db);
-            // Map features
-            case method === 'GET' && path === '/api/map/nearby':
-                return (0, api_1.handleMapNearby)(req, res, db);
-            case method === 'POST' && path === '/api/map/consent':
-                return (0, api_1.handleMapConsent)(req, res, db);
-            case method === 'POST' && path === '/api/map/location':
-                return (0, api_1.handleMapLocation)(req, res, db);
-            // Privacy
-            case method === 'POST' && path === '/api/privacy/incognito':
-                return (0, api_1.handlePrivacySettings)(req, res, db);
-            // User data
-            case method === 'POST' && path === '/api/me/export':
-                return (0, api_1.handleUserExport)(req, res, db);
-            case method === 'POST' && path === '/api/me/delete':
-                return (0, api_1.handleUserDelete)(req, res, db);
-            // Utilities
-            case method === 'GET' && path === '/api/orientations':
-                return (0, api_1.handleOrientations)(req, res, db);
-            // Moderation (admin only)
-            case method === 'GET' && path === '/api/mod/reports':
-                return (0, api_1.handleModerationReports)(req, res, db);
-            case method === 'POST' && path === '/api/mod/verify':
-                return (0, api_1.handleModerationVerify)(req, res, db);
-            case method === 'POST' && path === '/api/mod/block-user':
-                return (0, api_1.handleModerationBlock)(req, res, db);
-            default:
-                res.status(404).json({ ok: false, error: 'Not found' });
+exports.api = functions.https.onRequest((req, res) => {
+    return corsHandler(req, res, async () => {
+        const rawPath = req.path || '/';
+        const path = rawPath.replace(/^\/api(\/|$)/i, '/');
+        const method = req.method;
+        try {
+            switch (true) {
+                // Profile endpoints
+                case method === 'POST' && path === '/sendData':
+                    return (0, api_1.handleProfileSubmission)(req, res, db);
+                // Discovery/Recommendations
+                case method === 'POST' && path === '/recs':
+                    return (0, api_1.handleRecommendations)(req, res, db);
+                // Matches
+                case method === 'POST' && path === '/matches':
+                    return (0, api_1.handleMatches)(req, res, db);
+                // Chat
+                case method === 'POST' && path === '/chat/history':
+                    return (0, api_1.handleChatHistory)(req, res, db);
+                case method === 'POST' && path === '/chat/send':
+                    return (0, api_1.handleSendMessage)(req, res, db);
+                case method === 'POST' && path === '/chat/mark-read':
+                    return (0, api_1.handleMarkMessagesRead)(req, res, db);
+                case method === 'POST' && path === '/chat/typing':
+                    return (0, api_1.handleTypingIndicator)(req, res, db);
+                // Likes
+                case method === 'POST' && path === '/like':
+                    return (0, api_1.handleLikeUser)(req, res, db);
+                // Blocks
+                case method === 'POST' && path === '/block':
+                    return (0, api_1.handleBlockUser)(req, res, db);
+                // Reports
+                case method === 'POST' && path === '/report':
+                    return (0, api_1.handleReportUser)(req, res, db);
+                // Map features
+                case method === 'GET' && path === '/map/nearby':
+                    return (0, api_1.handleMapNearby)(req, res, db);
+                case method === 'POST' && path === '/map/consent':
+                    return (0, api_1.handleMapConsent)(req, res, db);
+                case method === 'POST' && path === '/map/location':
+                    return (0, api_1.handleMapLocation)(req, res, db);
+                // Privacy
+                case method === 'POST' && path === '/privacy/incognito':
+                    return (0, api_1.handlePrivacySettings)(req, res, db);
+                // User data
+                case method === 'POST' && path === '/me/export':
+                    return (0, api_1.handleUserExport)(req, res, db);
+                case method === 'POST' && path === '/me/delete':
+                    return (0, api_1.handleUserDelete)(req, res, db);
+                // Utilities
+                case method === 'GET' && path === '/orientations':
+                    return (0, api_1.handleOrientations)(req, res, db);
+                // Auth
+                case method === 'POST' && path === '/auth/telegram':
+                    return (0, api_1.handleTelegramAuth)(req, res, db);
+                case method === 'GET' && path === '/mod/reports':
+                    return (0, api_1.handleModerationReports)(req, res, db);
+                case method === 'POST' && path === '/api/mod/block-user':
+                    return (0, api_1.handleModerationBlock)(req, res, db);
+                default:
+                    res.status(404).json({ ok: false, error: 'Not found' });
+            }
         }
-    }
-    catch (error) {
-        console.error('API Error:', error);
-        res.status(500).json({ ok: false, error: 'Internal server error' });
-    }
+        catch (error) {
+            console.error('API Error:', error);
+            res.status(500).json({ ok: false, error: 'Internal server error' });
+        }
+        return Promise.resolve();
+    });
 });
 // Cloud Functions for background tasks
 exports.createMatch = functions.firestore

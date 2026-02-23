@@ -22,11 +22,17 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleStats = exports.handleOrientations = exports.handleModerationBlock = exports.handleModerationVerify = exports.handleModerationReports = exports.handleTypingIndicator = exports.handleMarkMessagesRead = exports.handleUserDelete = exports.handleUserExport = exports.handlePrivacySettings = exports.handleMapLocation = exports.handleMapConsent = exports.handleMapNearby = exports.handleReportUser = exports.handleBlockUser = exports.handleLikeUser = exports.handleSendMessage = exports.handleChatHistory = exports.handleMatches = exports.handleRecommendations = exports.handleProfileSubmission = void 0;
+exports.handleTelegramAuth = exports.handleStats = exports.handleOrientations = exports.handleModerationBlock = exports.handleModerationVerify = exports.handleModerationReports = exports.handleTypingIndicator = exports.handleMarkMessagesRead = exports.handleUserDelete = exports.handleUserExport = exports.handlePrivacySettings = exports.handleMapLocation = exports.handleMapConsent = exports.handleMapNearby = exports.handleReportUser = exports.handleBlockUser = exports.handleLikeUser = exports.handleSendMessage = exports.handleChatHistory = exports.handleMatches = exports.handleRecommendations = exports.handleProfileSubmission = void 0;
+const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const zod_1 = require("zod");
+const crypto_1 = __importDefault(require("crypto"));
 const geofire = __importStar(require("geofire-common"));
+const validateInitData_1 = require("./validateInitData");
 // const db = admin.firestore();
 // Validation schemas
 const ZSendDataBody = zod_1.z.object({
@@ -328,4 +334,122 @@ const handleStats = async (req, res, db) => {
     sendJSON(res, 200, { ok: true, stats: {} });
 };
 exports.handleStats = handleStats;
+const handleTelegramAuth = async (req, res, db) => {
+    var _a;
+    try {
+        const body = req.body || {};
+        const initData = (_a = body === null || body === void 0 ? void 0 : body.initData) !== null && _a !== void 0 ? _a : null;
+        const isWidgetPayloadTopLevel = body && body.id && body.hash;
+        const isWidgetPayloadInInit = initData && typeof initData === 'object' && initData.id && initData.hash;
+        const cfg = functions.config().telegram || {};
+        const botToken = process.env.BOT_TOKEN || cfg.bot_token || '';
+        const allowDemo = (process.env.ALLOW_DEMO === 'true') || (cfg.allow_demo === 'true');
+        let result = null;
+        // Case 1: Telegram WebApp initData string (existing flow)
+        if (typeof initData === 'string') {
+            if (!initData)
+                return sendJSON(res, 400, { success: false, error: 'Missing initData' });
+            result = (allowDemo && initData === 'demo_init_data')
+                ? (0, validateInitData_1.validateInitDataDemo)(initData)
+                : (botToken ? (0, validateInitData_1.validateInitData)(initData, botToken) : (0, validateInitData_1.validateInitDataDemo)(initData));
+            if (!result.valid || !result.user)
+                return sendJSON(res, 401, { success: false, error: result.error || 'Invalid initData' });
+        }
+        // Case 2: Telegram Login Widget payload (top-level or inside initData)
+        else if (isWidgetPayloadTopLevel || isWidgetPayloadInInit) {
+            const payload = isWidgetPayloadTopLevel ? body : initData;
+            if (!botToken) {
+                return sendJSON(res, 500, { success: false, error: 'Bot token not configured' });
+            }
+            const providedHash = String(payload.hash || '').toLowerCase();
+            const dataPairs = [];
+            for (const key of Object.keys(payload).filter(k => k !== 'hash').sort()) {
+                const value = payload[key];
+                if (value === undefined || value === null)
+                    continue;
+                dataPairs.push(`${key}=${String(value)}`);
+            }
+            const dataCheckString = dataPairs.join('\n');
+            const secretKey = crypto_1.default.createHash('sha256').update(botToken).digest();
+            const hmac = crypto_1.default.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+            if (hmac !== providedHash) {
+                return sendJSON(res, 401, { success: false, error: 'Invalid Telegram widget hash' });
+            }
+            // Optional: check auth_date freshness
+            const authDate = Number(payload.auth_date || 0);
+            if (authDate && Date.now() / 1000 - authDate > 86400) {
+                // older than 24h
+                return sendJSON(res, 401, { success: false, error: 'Telegram data expired' });
+            }
+            result = { valid: true, user: { id: String(payload.id), username: payload.username || null, first_name: payload.first_name || 'Usuario', photo_url: payload.photo_url || null } };
+        }
+        else if (allowDemo) {
+            // Fallback demo
+            result = (0, validateInitData_1.validateInitDataDemo)('demo_init_data');
+        }
+        else {
+            return sendJSON(res, 400, { success: false, error: 'Missing or invalid Telegram login payload' });
+        }
+        const uid = String(result.user.id);
+        let token = await admin.auth().createCustomToken(uid);
+        // Auto-create user if not exists
+        try {
+            const userRef = db.collection('users').doc(uid);
+            const existing = await userRef.get();
+            if (!existing.exists) {
+                // Create minimal user profile automatically
+                await userRef.set({
+                    telegramId: uid,
+                    displayName: result.user.first_name,
+                    username: result.user.username || null,
+                    language: result.user.language_code || 'es',
+                    photoUrl: result.user.photo_url || null,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+                    status: 'active',
+                    authMethod: 'telegram_direct'
+                }, { merge: true });
+                // Initialize default privacy settings
+                await db.collection('privacySettings').doc(uid).set({
+                    userId: uid,
+                    incognito: false,
+                    hideDistance: false,
+                    profileVisible: true,
+                    mapConsent: false,
+                    mapConsentAt: null
+                }, { merge: true });
+                // Initialize empty profile placeholder
+                await db.collection('profiles').doc(uid).set({
+                    userId: uid,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+            else {
+                // Update last login
+                await userRef.update({
+                    lastLogin: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+        catch (err) {
+            console.error('Error auto-creating user:', err);
+            // Continue even if DB write fails, token is valid
+        }
+        sendJSON(res, 200, {
+            success: true,
+            firebaseCustomToken: token,
+            user: {
+                id: uid,
+                username: result.user.username,
+                first_name: result.user.first_name
+            },
+            isNewUser: false // Frontend should redirect to app directly
+        });
+    }
+    catch (error) {
+        console.error('Telegram auth error:', error);
+        sendJSON(res, 500, { success: false, error: 'Internal server error' });
+    }
+};
+exports.handleTelegramAuth = handleTelegramAuth;
 //# sourceMappingURL=api.js.map

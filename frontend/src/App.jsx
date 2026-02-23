@@ -18,7 +18,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PrideHomePage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/theme-demo" element={<PrideHomePage />} />
         <Route path="/app/*" element={<MainAppPage />} />

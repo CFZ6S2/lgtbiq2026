@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, query, where, getDocs, orderBy, limit, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -29,19 +29,22 @@ export const firebaseAPI = {
   // Authentication
   async signInWithTelegram(initData) {
     try {
-      const response = await fetch('/api/auth/telegram', {
+      const response = await fetch('https://us-central1-lgtbiq26.cloudfunctions.net/api/auth/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
       });
-      
-      const data = await response.json();
+      const raw = await response.text();
+      let data;
+      try { data = JSON.parse(raw); } catch { data = { ok: false, error: 'Non-JSON response', raw }; }
+      console.log('[TelegramAuth] status:', response.status, 'payload:', data);
       if (response.ok && data.firebaseCustomToken) {
         await signInWithCustomToken(auth, data.firebaseCustomToken);
         return { success: true, jwt: data.token, user: data.user };
       }
       return { success: false, error: data.error };
     } catch (error) {
+      console.error('[TelegramAuth] request error:', error);
       return { success: false, error: error.message };
     }
   },
@@ -191,6 +194,17 @@ export const firebaseAPI = {
   // Real-time listeners
   onAuthStateChange(callback) {
     return onAuthStateChanged(auth, callback);
+  },
+
+  // Sign out
+  async signOut() {
+    try {
+      await signOut(auth);
+      return { success: true };
+    } catch (error) {
+      console.error('Sign out error:', error);
+      return { success: false, error: error.message };
+    }
   },
 
   // Subscribe to messages (using polling for now, can be upgraded to Firestore real-time)

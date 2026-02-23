@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Landing from './Landing';
 import Register from './Register';
-import App from './App';
 import { firebaseAPI } from './firebase';
 
 const MainApp = () => {
-  const [currentView, setCurrentView] = useState('landing'); // landing, register, app
+  const [currentView, setCurrentView] = useState('landing'); // landing, register, redirect
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Verificar si hay un usuario autenticado
     const unsubscribe = firebaseAPI.onAuthStateChange((firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        setCurrentView('app');
+        setCurrentView('redirect');
+        navigate('/app');
       } else {
         setUser(null);
         setCurrentView('landing');
@@ -78,8 +80,15 @@ const MainApp = () => {
     );
   }
 
-  if (currentView === 'app') {
-    return <App />;
+  if (currentView === 'redirect') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Entrando...</p>
+        </div>
+      </div>
+    );
   }
 
   return null;

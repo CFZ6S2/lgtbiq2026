@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import MainApp from './MainApp.jsx'
+import App from './App.jsx'
 import ThemeLoader from './components/ThemeLoader.jsx'
 import './styles.css'
 import './styles/pride-firebase-theme.css'
@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')).render(
     <ForcePrideTheme />
     <PrideThemeStyles />
     <ThemeLoader>
-      <MainApp />
+      <App />
     </ThemeLoader>
   </React.StrictMode>
 )
